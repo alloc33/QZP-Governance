@@ -1,11 +1,10 @@
-use anchor_lang::prelude::*;
-//use std::str::FromStr;
-use anchor_lang::solana_program::{program::invoke, system_instruction::transfer};
+use anchor_lang::{
+    prelude::*,
+    solana_program::{program::invoke, system_instruction::transfer},
+};
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
-// This is your program's public key and it will update
-// automatically when you build the project.
-declare_id!("9XcHeSSNVRDP4bkpXe3bgYVoQC1UGBS39JAB8w6L1CmU");
+declare_id!("Di7sLAGVcawC6Wqat2KRacKHQFF2S4RfyGPTCQBJoET3");
 
 #[program]
 mod vote_project {
@@ -17,12 +16,15 @@ mod vote_project {
         token_program: Pubkey,
         init_vote_fee: u64,
     ) -> Result<()> {
-        //let pub_vec = from_str("2vJe2h4WnJiemMq7v6qu6zacunspeRqx8VPq6ZhjyA5X");
-        let admin_pub = Pubkey::try_from("2vJe2h4WnJiemMq7v6qu6zacunspeRqx8VPq6ZhjyA5X");
-        msg!("Pubkey hard {:#?}", admin_pub);
-        msg!("Pubkey ctx {}", ctx.accounts.owner.key());
+        let trusted_admin_pubkey = Pubkey::try_from("2vJe2h4WnJiemMq7v6qu6zacunspeRqx8VPq6ZhjyA5X");
+        require!(
+            trusted_admin_pubkey == Ok(ctx.accounts.owner.key()),
+            VoteError::NotAdmin
+        );
 
-        require!(admin_pub == Ok(ctx.accounts.owner.key()), MyError::NotAdmin);
+        // msg!("Pubkey hard {:#?}", admin_pub);
+        // msg!("Pubkey ctx {}", ctx.accounts.owner.key());
+
         ctx.accounts.vote_data.vote_round = 1;
         ctx.accounts.vote_data.admin = ctx.accounts.owner.key();
         ctx.accounts.vote_data.tk_mint = token_mint;
@@ -30,12 +32,16 @@ mod vote_project {
         ctx.accounts.vote_data.vote_fee = init_vote_fee;
 
         msg!("Vote program with admin: initialize!"); // Message will show up in the tx logs
+        msg!("Round: 1");
         Ok(())
     }
 
     pub fn increment_round(ctx: Context<Admin>) -> Result<()> {
         ctx.accounts.vote_data.vote_round += 1;
-
+        msg!(
+            "New round is started: {}",
+            &ctx.accounts.vote_data.vote_round
+        );
         Ok(())
     }
 
@@ -46,10 +52,11 @@ mod vote_project {
         } else {
             msg!("You are not admin {}", ctx.accounts.owner.key());
         }
-        //
         Ok(())
     }
 
+    // WARN: Ensure idx is unique across rounds. Currently, it is possible to reuse the same idx in
+    // different rounds, which may cause confusion.
     pub fn add_project(ctx: Context<VoteProject>, idx: String) -> Result<()> {
         ctx.accounts.project_data.vote_manager = ctx.accounts.vote_manager.admin;
         ctx.accounts.project_data.idx = idx;
@@ -62,10 +69,18 @@ mod vote_project {
     }
 
     pub fn do_vote(ctx: Context<Vouter>, round: u8) -> Result<()> {
+        // Check if the voter has already voted in this round
         require!(
-            ctx.accounts.vote_manager.admin == ctx.accounts.admin_for_fee.key(),
-            MyError::NotAdmin
+            ctx.accounts.vouter_data.last_voted_round < ctx.accounts.vote_manager.vote_round,
+            VoteError::AlreadyVoted
         );
+
+        // Ensure that the round matches the current active round
+        require!(
+            ctx.accounts.vote_manager.vote_round == round,
+            VoteError::WrongRound
+        );
+
         if ctx.accounts.vote_manager.vote_round == round {
             let my_account = &ctx.accounts.token; // Light level type tokenaccount
             ctx.accounts.project.vote_count += my_account.amount;
@@ -79,8 +94,6 @@ mod vote_project {
                 ctx.accounts.project.name,
                 my_account.amount
             );
-            //   }
-            //if ctx.accounts.vote_manager.admin == ctx.accounts.admin_for_fee.key() {
             let voting_fee_transfer = transfer(
                 &ctx.accounts.signer.key(),
                 &ctx.accounts.admin_for_fee.key(),
@@ -108,8 +121,11 @@ mod vote_project {
             init_if_needed,
             payer = owner,
             space = 8 + VoteManager::INIT_SPACE,
-            seeds = [b"vote_manager", owner.key().as_ref()],bump)
-        ]
+            seeds = [
+                b"vote_manager",
+                owner.key().as_ref()],
+            bump
+        )]
         pub vote_data: Account<'info, VoteManager>,
         #[account(mut)]
         pub owner: Signer<'info>,
@@ -117,36 +133,51 @@ mod vote_project {
     }
 
     #[derive(Accounts)]
-    #[instruction(idx: String)]
+    #[instruction(idx:String)]
     pub struct VoteProject<'info> {
         #[account(
             init_if_needed,
             payer = owner,
             space = 8 + ProjectData::INIT_SPACE,
-            seeds = [idx.as_ref(), owner.key().as_ref()],
+            seeds = [
+                idx.as_bytes(),                         // Project identifier
+                &vote_manager.vote_round.to_le_bytes(), // Round number ensures uniqueness
+                owner.key().as_ref()                    // Admin's public key
+            ],
             bump)]
         pub project_data: Account<'info, ProjectData>,
-        #[account(mut, constraint = vote_manager.admin == owner.key())]
+        #[account(
+            mut,
+            constraint = vote_manager.admin == owner.key()
+        )]
         pub vote_manager: Account<'info, VoteManager>,
         #[account(mut)]
         pub owner: Signer<'info>,
         pub system_program: Program<'info, System>,
     }
     #[derive(Accounts)]
-    #[instruction(round: u8)]
+    #[instruction(round:u8)]
     pub struct Vouter<'info> {
-        #[account(init,
-            payer = signer,
-            space = 8 + VouterData::INIT_SPACE,
-            seeds = [b"vouter",&[round,1,1,1,1,1],signer.key().as_ref()],bump)
-        ]
+        #[account(
+        init,
+        payer = signer,
+        space = 8 + VouterData::INIT_SPACE,
+        // These seeds ensure that a voter (signer.key()) cannot create duplicate accounts for the
+        // same round.
+        seeds = [
+            b"vouter",                  // Fixed prefix for vouter data
+            &pad_round(round),          // Use round as a single-byte slice
+            signer.key().as_ref()       // Voter's wallet for uniqueness
+        ],
+        bump
+        )]
         pub vouter_data: Account<'info, VouterData>,
         #[account(mut)]
         pub signer: Signer<'info>,
         #[account(mut)]
         pub vote_manager: Account<'info, VoteManager>,
         #[account(mut)]
-        /// CHECK: This is not dangerous because we don't read or write from this account
+        /// INFO: This is not dangerous because we don't read or write from this account
         pub admin_for_fee: UncheckedAccount<'info>,
         #[account(mut)]
         pub project: Account<'info, ProjectData>,
@@ -189,8 +220,19 @@ mod vote_project {
     }
 
     #[error_code]
-    pub enum MyError {
+    pub enum VoteError {
         #[msg("Vote program with admin: do not initialize!")]
         NotAdmin,
+        #[msg("You have already voted in this round.")]
+        AlreadyVoted,
+        #[msg("Wrong vote round.")]
+        WrongRound,
     }
+}
+
+// Helper function
+fn pad_round(round: u8) -> [u8; 6] {
+    let mut padded = [0u8; 6];
+    padded[0] = round; // Place the round value at the first position
+    padded
 }
