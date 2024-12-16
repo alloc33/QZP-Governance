@@ -8,6 +8,7 @@ describe("Test", () => {
   // Configure the client to use the local cluster
   anchor.setProvider(anchor.AnchorProvider.env());
 
+  // const program = anchor.workspace.VoteProject as anchor.Program<VoteProject>;
   const program = anchor.workspace.VoteProject as anchor.Program<VoteProject>;
   
   it("initialize", async () => {

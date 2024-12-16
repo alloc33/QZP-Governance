@@ -1,7 +1,6 @@
 use anchor_lang::prelude::*;
 //use std::str::FromStr;
-use anchor_lang::solana_program::program::invoke;
-use anchor_lang::solana_program::system_instruction::transfer;
+use anchor_lang::solana_program::{program::invoke, system_instruction::transfer};
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 // This is your program's public key and it will update
@@ -18,7 +17,6 @@ mod vote_project {
         token_program: Pubkey,
         init_vote_fee: u64,
     ) -> Result<()> {
-
         //let pub_vec = from_str("2vJe2h4WnJiemMq7v6qu6zacunspeRqx8VPq6ZhjyA5X");
         let admin_pub = Pubkey::try_from("2vJe2h4WnJiemMq7v6qu6zacunspeRqx8VPq6ZhjyA5X");
         msg!("Pubkey hard {:#?}", admin_pub);
@@ -106,8 +104,12 @@ mod vote_project {
 
     #[derive(Accounts)]
     pub struct Admin<'info> {
-        #[account(init_if_needed, payer = owner,space = 8 + VoteManager::INIT_SPACE,
-    seeds = [b"vote_manager", owner.key().as_ref()],bump)]
+        #[account(
+            init_if_needed,
+            payer = owner,
+            space = 8 + VoteManager::INIT_SPACE,
+            seeds = [b"vote_manager", owner.key().as_ref()],bump)
+        ]
         pub vote_data: Account<'info, VoteManager>,
         #[account(mut)]
         pub owner: Signer<'info>,
@@ -117,11 +119,14 @@ mod vote_project {
     #[derive(Accounts)]
     #[instruction(idx: String)]
     pub struct VoteProject<'info> {
-        #[account(init_if_needed, payer = owner,space = 8 + ProjectData::INIT_SPACE,
-    seeds = [idx.as_ref(),owner.key().as_ref()]
-    ,bump)]
+        #[account(
+            init_if_needed,
+            payer = owner,
+            space = 8 + ProjectData::INIT_SPACE,
+            seeds = [idx.as_ref(), owner.key().as_ref()],
+            bump)]
         pub project_data: Account<'info, ProjectData>,
-        #[account(mut, constraint = vote_manager.admin == owner.key() )]
+        #[account(mut, constraint = vote_manager.admin == owner.key())]
         pub vote_manager: Account<'info, VoteManager>,
         #[account(mut)]
         pub owner: Signer<'info>,
@@ -130,8 +135,11 @@ mod vote_project {
     #[derive(Accounts)]
     #[instruction(round: u8)]
     pub struct Vouter<'info> {
-        #[account(init, payer = signer,space = 8 + VouterData::INIT_SPACE,
-    seeds = [b"vouter",&[round,1,1,1,1,1],signer.key().as_ref()],bump)]
+        #[account(init,
+            payer = signer,
+            space = 8 + VouterData::INIT_SPACE,
+            seeds = [b"vouter",&[round,1,1,1,1,1],signer.key().as_ref()],bump)
+        ]
         pub vouter_data: Account<'info, VouterData>,
         #[account(mut)]
         pub signer: Signer<'info>,
@@ -182,7 +190,7 @@ mod vote_project {
 
     #[error_code]
     pub enum MyError {
-        #[msg("Vote program with admin: not initialize!")]
+        #[msg("Vote program with admin: do not initialize!")]
         NotAdmin,
     }
 }
