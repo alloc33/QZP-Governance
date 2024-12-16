@@ -1,10 +1,4 @@
 use anchor_lang::prelude::*;
-use anchor_spl::{
-    token_interface::{
-        Mint, TokenAccount, MintTo, mint_to, TransferChecked, transfer_checked, TokenInterface,
-    },
-    associated_token::AssociatedToken,
-};
 
 pub mod instructions;
 pub mod utils;

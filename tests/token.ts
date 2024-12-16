@@ -77,7 +77,7 @@ describe("token extensions", () => {
     }
   });
 
-  it("mint extension constraints fails with invalid authority", async () => {
+  it("Mint extension constraints fails with invalid authority", async () => {
     const wrongAuth = Keypair.generate();
     try {
       await program.methods
@@ -88,6 +88,7 @@ describe("token extensions", () => {
         })
         .signers([wrongAuth])
         .rpc();
+
       assert.fail('should have thrown an error');
     } catch (e) {
       expect(e, 'should throw error');
