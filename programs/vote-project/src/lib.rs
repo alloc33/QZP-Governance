@@ -177,7 +177,7 @@ mod vote_project {
         #[account(mut)]
         pub vote_manager: Account<'info, VoteManager>,
         #[account(mut)]
-        /// INFO: This is not dangerous because we don't read or write from this account
+        /// CHECK: This is not dangerous because we don't read or write from this account
         pub admin_for_fee: UncheckedAccount<'info>,
         #[account(mut)]
         pub project: Account<'info, ProjectData>,

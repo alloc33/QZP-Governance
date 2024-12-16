@@ -1,44 +1,52 @@
-import BN from "bn.js";
-import assert from "assert";
-import * as web3 from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
-import type { VoteProject } from "../target/types/vote_project";
+import { Program, BN, web3 } from "@coral-xyz/anchor";
+import { VoteProject } from "../target/types/vote_project";
+import fs from 'fs'
+import { Resolver } from "dns/promises";
 
-describe("Test", () => {
-  // Configure the client to use the local cluster
-  anchor.setProvider(anchor.AnchorProvider.env());
+const SECRET_KEY_BYTES = require('../../wallet-keypair.json');
+// Configure the client to use the local cluster.
+//anchor.setProvider(anchor.AnchorProvider.env());
+const solanaConnection = new web3.Connection('http://127.0.0.1:8899/');
+//const bytes = JSON.parse(fs.readFileSync("../JorqgPgAg7GH5T1bwVR7Ek6pxbJ2dU3rPRLsbAd3cHf.json"))
+const admin_wallet = web3.Keypair.fromSecretKey(new Uint8Array(SECRET_KEY_BYTES));
+console.log(admin_wallet.publicKey.toBase58())
+const vouter_wallet = admin_wallet.publicKey;
+const program = anchor.workspace.VoteProject as Program<VoteProject>;
+// const fetch_json_vote_manager = program.account.voteManager.all;
+// const fetch_json_project = program.account.projectData.all;
+// const vote_manager_account = new web3.PublicKey("DY6jBZVTjJvhGfX78aKGqMHfcB5SRpu2r46tMevbiN9");
+// const project_account = new web3.PublicKey("4DDekW8njEsb58td6oW6LqL5WYnxdq3aiyhkBGPJkYp7");
+// const vouter_token_account = new web3.PublicKey("5ubstUxaANSsddJvMNe5xKBhNJeocEnco52V3XoJp7Hd");
+// const token_mint = new web3.PublicKey("QZL5xBYTFttwULqgKrXFDZep8WvweocqxbXWzJJq7J8");
+// const token_program = new web3.PublicKey("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
+// const admin_for_fee = admin_wallet.publicKey;//new web3.PublicKey("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
+// const round = 1;
 
-  // const program = anchor.workspace.VoteProject as anchor.Program<VoteProject>;
-  const program = anchor.workspace.VoteProject as anchor.Program<VoteProject>;
-  
-  it("initialize", async () => {
-    // Generate keypair for the new account
-    const voteManager = anchor.Program.fetchIdl('FPBb79RbBdnJRLgji8vhFHeBQ4gKcjjDTw7xTrYjro6p');
-    program.account.projectData
-    // Send transaction
-    const data = new BN(42);
-    const txHash = await program.methods
-      .initialize(data)
-      .accounts({
-        newAccount: newAccountKp.publicKey,
-        signer: program.provider.publicKey,
-        systemProgram: web3.SystemProgram.programId,
-      })
-      .signers([newAccountKp])
-      .rpc();
-    console.log(`Use 'solana confirm -v ${txHash}' to see the logs`);
 
-    // Confirm transaction
-    await program.provider.connection.confirmTransaction(txHash);
+// const PDA = web3.PublicKey.findProgramAddressSync(
+//   [Buffer.from("vouter"), new Uint8Array([round, 1, 1, 1, 1, 1]), admin_wallet.publicKey.toBuffer()],
+//   program.programId,
+// );
 
-    // Fetch the created account
-    const newAccount = await program.account.newAccount.fetch(
-      newAccountKp.publicKey
-    );
+// let init_Voter_accounts = {
+//   PDA,
+//   signer: vouter_wallet,
+//   vote_manager: vote_manager_account,
+//   admin_for_fee: admin_for_fee,
+//   project: project_account,
+//   mint: token_mint,
+//   token: vouter_token_account,
+//   token_program: token_program,
+//   systemProgram: anchor.web3.SystemProgram.programId,
+// };
 
-    console.log("On-chain data is:", newAccount.data.toString());
-
-    // Check whether the data on-chain is equal to local 'data'
-    assert(data.eq(newAccount.data));
-  });
-});
+// async () => {
+//   // Add your test here.
+//   const tx = await program
+//     .methods
+//     .do_vote(round)
+//     .accounts(init_Voter_accounts)
+//     .rpc();
+//   console.log("Your transaction signature", tx);
+// }
