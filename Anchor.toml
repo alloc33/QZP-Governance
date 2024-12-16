@@ -5,6 +5,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
+token = "4wYyKpdmL82mehsRdiTCTbCnGCBZjdgbz6vE8J46VQFn"
 vote_project = "Di7sLAGVcawC6Wqat2KRacKHQFF2S4RfyGPTCQBJoET3"
 
 [registry]

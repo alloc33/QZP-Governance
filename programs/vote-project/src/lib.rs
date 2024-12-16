@@ -6,6 +6,10 @@ use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 declare_id!("Di7sLAGVcawC6Wqat2KRacKHQFF2S4RfyGPTCQBJoET3");
 
+// Specify your (admin's) public key assuming that your private key is in PATH (e.g.
+// ~/.config/solana/id.json)
+const ADMIN_PUBKEY: &str = "2vJe2h4WnJiemMq7v6qu6zacunspeRqx8VPq6ZhjyA5X";
+
 #[program]
 mod vote_project {
     use super::*;
@@ -16,14 +20,20 @@ mod vote_project {
         token_program: Pubkey,
         init_vote_fee: u64,
     ) -> Result<()> {
-        let trusted_admin_pubkey = Pubkey::try_from("2vJe2h4WnJiemMq7v6qu6zacunspeRqx8VPq6ZhjyA5X");
+        let trusted_admin_pubkey = Pubkey::try_from(ADMIN_PUBKEY);
+
+        msg!("Pubkey hard {:#?}", trusted_admin_pubkey);
+        msg!("Pubkey ctx {}", ctx.accounts.owner.key());
+
         require!(
             trusted_admin_pubkey == Ok(ctx.accounts.owner.key()),
             VoteError::NotAdmin
         );
 
-        // msg!("Pubkey hard {:#?}", admin_pub);
-        // msg!("Pubkey ctx {}", ctx.accounts.owner.key());
+        require!(
+            ctx.accounts.vote_data.admin == Pubkey::default(),
+            VoteError::DoubleInitAttempt
+        );
 
         ctx.accounts.vote_data.vote_round = 1;
         ctx.accounts.vote_data.admin = ctx.accounts.owner.key();
@@ -57,7 +67,7 @@ mod vote_project {
 
     // WARN: Ensure idx is unique across rounds. Currently, it is possible to reuse the same idx in
     // different rounds, which may cause confusion.
-    pub fn add_project(ctx: Context<VoteProject>, idx: String) -> Result<()> {
+    pub fn add_project(ctx: Context<NewVoteProject>, idx: String) -> Result<()> {
         ctx.accounts.project_data.vote_manager = ctx.accounts.vote_manager.admin;
         ctx.accounts.project_data.idx = idx;
         ctx.accounts.project_data.vote_count = 0;
@@ -123,7 +133,8 @@ mod vote_project {
             space = 8 + VoteManager::INIT_SPACE,
             seeds = [
                 b"vote_manager",
-                owner.key().as_ref()],
+                owner.key().as_ref()
+            ],
             bump
         )]
         pub vote_data: Account<'info, VoteManager>,
@@ -134,9 +145,10 @@ mod vote_project {
 
     #[derive(Accounts)]
     #[instruction(idx:String)]
-    pub struct VoteProject<'info> {
+    pub struct NewVoteProject<'info> {
         #[account(
-            init_if_needed,
+            // Constrained to unique PDA address.
+            init,
             payer = owner,
             space = 8 + ProjectData::INIT_SPACE,
             seeds = [
@@ -155,6 +167,7 @@ mod vote_project {
         pub owner: Signer<'info>,
         pub system_program: Program<'info, System>,
     }
+
     #[derive(Accounts)]
     #[instruction(round:u8)]
     pub struct Vouter<'info> {
@@ -166,7 +179,7 @@ mod vote_project {
         // same round.
         seeds = [
             b"vouter",                  // Fixed prefix for vouter data
-            &pad_round(round),          // Use round as a single-byte slice
+            &[round,1,1,1,1,1],          // Use round as a single-byte slice
             signer.key().as_ref()       // Voter's wallet for uniqueness
         ],
         bump
@@ -227,12 +240,14 @@ mod vote_project {
         AlreadyVoted,
         #[msg("Wrong vote round.")]
         WrongRound,
+        #[msg("Admin account already initialized")]
+        DoubleInitAttempt,
     }
 }
 
 // Helper function
-fn pad_round(round: u8) -> [u8; 6] {
-    let mut padded = [0u8; 6];
-    padded[0] = round; // Place the round value at the first position
-    padded
-}
+// fn pad_round(round: u8) -> [u8; 6] {
+//     let mut padded = [0u8; 6];
+//     padded[0] = round; // Place the round value at the first position
+//     padded
+// }
