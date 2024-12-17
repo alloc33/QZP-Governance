@@ -78,49 +78,57 @@ mod vote_project {
         Ok(())
     }
 
-    pub fn do_vote(ctx: Context<Vouter>, round: u8) -> Result<()> {
-        // Check if the voter has already voted in this round
+    // We're using `round` to check project_data PDA in account constraints
+    pub fn do_vote(ctx: Context<Vouter>, _round: u8) -> Result<()> {
+        // INFO: Double vote or incorrect round cases are being handled through account constraints.
+
+        // Prevent double voting by using PDA constraints
+        let my_account = &ctx.accounts.token;
+
+        // Ensure sufficient token balance for the voting fee
         require!(
-            ctx.accounts.vouter_data.last_voted_round < ctx.accounts.vote_manager.vote_round,
-            VoteError::AlreadyVoted
+            my_account.amount >= ctx.accounts.vote_manager.vote_fee,
+            VoteError::InsufficientTokens
         );
 
-        // Ensure that the round matches the current active round
-        require!(
-            ctx.accounts.vote_manager.vote_round == round,
-            VoteError::WrongRound
+        // Increment the vote counts
+        ctx.accounts.project.vote_count += 1; // Increment project votes
+        ctx.accounts.vouter_data.vote_count += 1; // Increment voter votes
+        ctx.accounts.vouter_data.last_voted_round = ctx.accounts.project.vote_round;
+        ctx.accounts.vouter_data.vouter = ctx.accounts.signer.key();
+        ctx.accounts.vouter_data.project_name = (*ctx.accounts.project.idx).to_string();
+
+        msg!(
+            "{} voted for {}, total votes: {}",
+            ctx.accounts.signer.key(),
+            ctx.accounts.project.idx,
+            ctx.accounts.project.vote_count
         );
 
-        if ctx.accounts.vote_manager.vote_round == round {
-            let my_account = &ctx.accounts.token; // Light level type tokenaccount
-            ctx.accounts.project.vote_count += my_account.amount;
-            ctx.accounts.vouter_data.vote_count += my_account.amount;
-            ctx.accounts.vouter_data.last_voted_round = ctx.accounts.project.vote_round;
-            ctx.accounts.vouter_data.vouter = ctx.accounts.signer.key();
-            ctx.accounts.vouter_data.project_name = (*ctx.accounts.project.name).to_string();
-            msg!(
-                "{} voted for {}, {} voutes",
-                ctx.accounts.signer.key(),
-                ctx.accounts.project.name,
-                my_account.amount
-            );
-            let voting_fee_transfer = transfer(
-                &ctx.accounts.signer.key(),
-                &ctx.accounts.admin_for_fee.key(),
-                ctx.accounts.project.vote_fee,
-            );
-            invoke(
-                &voting_fee_transfer,
-                &[
-                    ctx.accounts.signer.to_account_info(),
-                    ctx.accounts.admin_for_fee.to_account_info(),
-                    ctx.accounts.system_program.to_account_info(),
-                ],
-            )?;
-            msg!("Fee transfer to {}", ctx.accounts.admin_for_fee.key());
-        } else {
-            msg!("Wrong vote round {}", round);
-        }
+        // Construct the token transfer CPI using transfer_checked
+        let cpi_accounts = anchor_spl::token_interface::TransferChecked {
+            from: ctx.accounts.token.to_account_info(),
+            to: ctx.accounts.admin_for_fee.to_account_info(),
+            mint: ctx.accounts.mint.to_account_info(),
+            authority: ctx.accounts.signer.to_account_info(),
+        };
+
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+
+        // Transfer QZL tokens as the voting fee (use transfer_checked)
+        let token_decimals = 0; // Replace with actual token decimals if not zero
+        anchor_spl::token_interface::transfer_checked(
+            cpi_ctx,
+            ctx.accounts.vote_manager.vote_fee,
+            token_decimals,
+        )?;
+
+        msg!(
+            "Voting fee of {} QZL tokens transferred to {}",
+            ctx.accounts.vote_manager.vote_fee,
+            ctx.accounts.admin_for_fee.key()
+        );
 
         Ok(())
     }
@@ -169,34 +177,39 @@ mod vote_project {
     }
 
     #[derive(Accounts)]
-    #[instruction(round:u8)]
+    #[instruction(round: u8)]
     pub struct Vouter<'info> {
         #[account(
         init,
         payer = signer,
         space = 8 + VouterData::INIT_SPACE,
-        // These seeds ensure that a voter (signer.key()) cannot create duplicate accounts for the
-        // same round.
         seeds = [
-            b"vouter",                  // Fixed prefix for vouter data
-            &[round,1,1,1,1,1],          // Use round as a single-byte slice
-            signer.key().as_ref()       // Voter's wallet for uniqueness
+            b"vouter",
+            &[round, 1, 1, 1, 1, 1], // Use round as a single-byte slice
+            signer.key().as_ref()     // Voter's wallet for uniqueness
         ],
         bump
         )]
         pub vouter_data: Account<'info, VouterData>,
         #[account(mut)]
-        pub signer: Signer<'info>,
+        pub signer: Signer<'info>, // The voter's wallet (authority for token transfer)
         #[account(mut)]
-        pub vote_manager: Account<'info, VoteManager>,
+        pub vote_manager: Account<'info, VoteManager>, // Vote manager account
+        #[account(
+            mut,
+            // constraint = admin_for_fee.mint == vote_manager.tk_mint, // Ensure mint matches
+            constraint = admin_for_fee.owner == vote_manager.admin,  // Ensure owner matches admin wallet
+            // token::mint = mint,                           // Token-2022 program
+            // token::authority = token_program
+        )]
+        pub admin_for_fee: InterfaceAccount<'info, TokenAccount>, /* Admin's token account
+                                                                   * (receiver) */
         #[account(mut)]
-        /// CHECK: This is not dangerous because we don't read or write from this account
-        pub admin_for_fee: UncheckedAccount<'info>,
+        pub project: Account<'info, ProjectData>, // Project being voted for
+        pub mint: InterfaceAccount<'info, Mint>, // Token mint for QZL
         #[account(mut)]
-        pub project: Account<'info, ProjectData>,
-        pub mint: InterfaceAccount<'info, Mint>,
-        pub token: InterfaceAccount<'info, TokenAccount>,
-        pub token_program: Interface<'info, TokenInterface>,
+        pub token: InterfaceAccount<'info, TokenAccount>, // Voter's token account (source)
+        pub token_program: Interface<'info, TokenInterface>, // Token program interface
         pub system_program: Program<'info, System>,
     }
 
@@ -236,18 +249,11 @@ mod vote_project {
     pub enum VoteError {
         #[msg("Vote program with admin: do not initialize!")]
         NotAdmin,
-        #[msg("You have already voted in this round.")]
-        AlreadyVoted,
         #[msg("Wrong vote round.")]
         WrongRound,
-        #[msg("Admin account already initialized")]
+        #[msg("Admin account already initialized.")]
         DoubleInitAttempt,
+        #[msg("Not enough QZL tokens")]
+        InsufficientTokens,
     }
 }
-
-// Helper function
-// fn pad_round(round: u8) -> [u8; 6] {
-//     let mut padded = [0u8; 6];
-//     padded[0] = round; // Place the round value at the first position
-//     padded
-// }

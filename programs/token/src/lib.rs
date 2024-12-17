@@ -18,6 +18,10 @@ pub mod token_extensions {
         instructions::handler(ctx, args)
     }
 
+    pub fn mint_to_account(ctx: Context<MintTo>, amount: u64) -> Result<()> {
+        instructions::mint_to(ctx, amount)
+    }
+
     pub fn check_mint_extensions_constraints(
         _ctx: Context<CheckMintExtensionConstraints>,
     ) -> Result<()> {

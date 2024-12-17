@@ -9,7 +9,7 @@ use anchor_spl::{
     },
     token_interface::{
         spl_token_metadata_interface::state::TokenMetadata, token_metadata_initialize, Mint,
-        Token2022, TokenAccount, TokenMetadataInitialize,
+        Token2022, TokenAccount, TokenInterface, TokenMetadataInitialize,
     },
 };
 use spl_pod::optional_keys::OptionalNonZeroPubkey;
@@ -24,6 +24,17 @@ pub struct CreateMintAccountArgs {
     pub name: String,
     pub symbol: String,
     pub uri: String,
+}
+
+#[derive(Accounts)]
+pub struct MintTo<'info> {
+    #[account(mut)]
+    pub mint: Box<InterfaceAccount<'info, Mint>>,
+    #[account(mut)]
+    pub token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(signer)]
+    pub authority: Signer<'info>,
+    pub token_program: Interface<'info, TokenInterface>,
 }
 
 #[derive(Accounts)]
@@ -162,6 +173,24 @@ pub fn handler(ctx: Context<CreateMintAccount>, args: CreateMintAccountArgs) -> 
     Ok(())
 }
 
+pub fn mint_to(ctx: Context<MintTo>, amount: u64) -> Result<()> {
+    // Construct CpiContext for the mint_to function
+    let cpi_accounts = anchor_spl::token_2022::MintTo {
+        mint: ctx.accounts.mint.to_account_info(),
+        to: ctx.accounts.token_account.to_account_info(),
+        authority: ctx.accounts.authority.to_account_info(),
+    };
+
+    let cpi_program = ctx.accounts.token_program.to_account_info();
+
+    let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+
+    // Call the mint_to function
+    anchor_spl::token_interface::mint_to(cpi_ctx, amount)?;
+
+    Ok(())
+}
+
 #[derive(Accounts)]
 #[instruction()]
 pub struct CheckMintExtensionConstraints<'info> {
@@ -179,4 +208,10 @@ pub struct CheckMintExtensionConstraints<'info> {
         extensions::permanent_delegate::delegate = authority,
     )]
     pub mint: Box<InterfaceAccount<'info, Mint>>,
+}
+
+#[error_code]
+pub enum QZLTokenError {
+    #[msg("Unable to initialize token mint")]
+    UnableToInitializeMint,
 }
