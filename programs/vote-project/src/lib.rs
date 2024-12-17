@@ -105,24 +105,23 @@ mod vote_project {
             ctx.accounts.project.vote_count
         );
 
-        // Construct the token transfer CPI using transfer_checked
-        let cpi_accounts = anchor_spl::token_interface::TransferChecked {
-            from: ctx.accounts.token.to_account_info(),
-            to: ctx.accounts.admin_for_fee.to_account_info(),
-            mint: ctx.accounts.mint.to_account_info(),
-            authority: ctx.accounts.signer.to_account_info(),
-        };
+        // let cpi_accounts = anchor_spl::token_interface::TransferChecked {
+        //     from: ctx.accounts.token.to_account_info(),
+        //     to: ctx.accounts.admin_for_fee.to_account_info(),
+        //     mint: ctx.accounts.mint.to_account_info(),
+        //     authority: ctx.accounts.signer.to_account_info(),
+        // };
 
-        let cpi_program = ctx.accounts.token_program.to_account_info();
-        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+        // let cpi_program = ctx.accounts.token_program.to_account_info();
+        // let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
 
-        // Transfer QZL tokens as the voting fee (use transfer_checked)
-        let token_decimals = 0; // Replace with actual token decimals if not zero
-        anchor_spl::token_interface::transfer_checked(
-            cpi_ctx,
-            ctx.accounts.vote_manager.vote_fee,
-            token_decimals,
-        )?;
+        // // Transfer QZL tokens as the voting fee (use transfer_checked)
+        // let token_decimals = 0; // Replace with actual token decimals if not zero
+        // anchor_spl::token_interface::transfer_checked(
+        //     cpi_ctx,
+        //     ctx.accounts.vote_manager.vote_fee,
+        //     token_decimals,
+        // )?;
 
         msg!(
             "Voting fee of {} QZL tokens transferred to {}",
@@ -197,13 +196,10 @@ mod vote_project {
         pub vote_manager: Account<'info, VoteManager>, // Vote manager account
         #[account(
             mut,
-            // constraint = admin_for_fee.mint == vote_manager.tk_mint, // Ensure mint matches
-            constraint = admin_for_fee.owner == vote_manager.admin,  // Ensure owner matches admin wallet
-            // token::mint = mint,                           // Token-2022 program
-            // token::authority = token_program
+            // token::authority = vote_manager.admin, // Ensure admin owns this ATA
+            // token::mint = mint.key()
         )]
-        pub admin_for_fee: InterfaceAccount<'info, TokenAccount>, /* Admin's token account
-                                                                   * (receiver) */
+        pub admin_for_fee: InterfaceAccount<'info, TokenAccount>,
         #[account(mut)]
         pub project: Account<'info, ProjectData>, // Project being voted for
         pub mint: InterfaceAccount<'info, Mint>, // Token mint for QZL

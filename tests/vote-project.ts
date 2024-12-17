@@ -386,96 +386,84 @@ describe("vote-project-tests", () => {
     )[0];
 
     const adminAta = await getAssociatedTokenAddress(
-      token_mint.publicKey,      // Mint address
-      TOKEN_2022_PROGRAM_ID,     // Owner: Token 2022 Program ID
-      true,                      // Token 2022 compatibility
-      TOKEN_2022_PROGRAM_ID      // Token 2022 Program
+      token_mint.publicKey,   // Mint address
+      admin_wallet.publicKey, // Admin's wallet public key (vote_manager.admin)
+      true,                   // Token-2022 compatibility
+      TOKEN_2022_PROGRAM_ID   // Token-2022 program
     );
 
     const voterAta = await getAssociatedTokenAddress(
-      token_mint.publicKey,      // Mint address
-      voter.publicKey,     // Owner: Token 2022 Program ID
-      true,                      // Token 2022 compatibility
-      TOKEN_2022_PROGRAM_ID      // Token 2022 Program
+      token_mint.publicKey,         // Mint address
+      voter.publicKey,              // Voter's public key
+      true,                         // Token-2022 compatibility
+      TOKEN_2022_PROGRAM_ID         // Token-2022 program
     );
 
     // Create the ATA
     const ataTransaction = new anchor.web3.Transaction().add(
       createAssociatedTokenAccountInstruction(
         provider.publicKey,       // Payer for account creation
-        adminAta,                 // Derived ATA address
-        TOKEN_2022_PROGRAM_ID,    // Owner of the ATA
+        adminAta,                 // Admin ATA
+        admin_wallet.publicKey,   // Owner of the ATA (vote_manager.admin)
         token_mint.publicKey,     // Mint address
-        TOKEN_2022_PROGRAM_ID,    // Token 2022 Program
-        ASSOCIATED_PROGRAM_ID     // Associated Token Program for Token 2022
+        TOKEN_2022_PROGRAM_ID,    // Token-2022 Program
+        ASSOCIATED_PROGRAM_ID     // Associated Token Program for Token-2022
       ),
       createAssociatedTokenAccountInstruction(
         provider.publicKey,       // Payer for account creation
-        voterAta,
-        voter.publicKey,           // Owner of ATA
+        voterAta,                 // Voter ATA
+        voter.publicKey,          // Owner of the ATA
         token_mint.publicKey,
         TOKEN_2022_PROGRAM_ID,
         ASSOCIATED_PROGRAM_ID
       )
     );
 
-    console.log(adminAta);
-    console.log(voterAta);
-
     try {
-    await provider.sendAndConfirm(ataTransaction);
-    } catch(err) {
+      await provider.sendAndConfirm(ataTransaction);
+    } catch (err) {
       console.log(err)
     }
 
-    // Step 1: Ensure ATAs are Initialized
+    await tokenProgram.methods
+      .mintToAccount(new anchor.BN(100)) // Mint 100 tokens
+      .accounts({
+        mint: token_mint.publicKey,
+        tokenAccount: voterAta,
+        authority: provider.publicKey,
+        tokenProgram: TOKEN_2022_PROGRAM_ID,
+      })
+      .rpc();
 
-    // // }
+    let add_project_accounts = {
+      projectData: projectPda,
+      voteManager: voteManagerPda,
+      owner: admin_wallet.publicKey,
+      systemProgram: anchor.web3.SystemProgram.programId,
+    }
 
-    // console.log(voterAta);
+    await voteProgram.methods
+      .addProject(projectIdx)
+      .accounts(add_project_accounts)
+      .rpc();
 
-    //   // Step 2: Mint Tokens to Voter's ATA
-    //   await tokenProgram.methods
-    //     .mintToAccount(new anchor.BN(100)) // Mint 100 tokens
-    //     .accounts({
-    //       mint: token_mint.publicKey,
-    //       tokenAccount: voterAta,
-    //       authority: provider.publicKey,
-    //       tokenProgram: TOKEN_2022_PROGRAM_ID,
-    //     })
-    //     .rpc();
+    let do_vote_accounts = {
+      vouterData: voterDataPda,
+      signer: voter.publicKey,
+      voteManager: voteManagerPda,
+      adminForFee: adminAta,
+      project: projectPda,
+      mint: token_mint.publicKey,
+      token: voterAta,
+      tokenProgram: TOKEN_2022_PROGRAM_ID,
+      systemProgram: anchor.web3.SystemProgram.programId,
+    }
 
-    //   let add_project_accounts = {
-    //     projectData: projectPda,
-    //     voteManager: voteManagerPda,
-    //     owner: admin_wallet.publicKey,
-    //     systemProgram: anchor.web3.SystemProgram.programId,
-    //   }
-
-    //   // Step 3: Add Project
-    //   await voteProgram.methods
-    //     .addProject(projectIdx)
-    //     .accounts(add_project_accounts)
-    //     .rpc();
-
-    //   let do_vote_accounts = {
-    //     vouterData: voterDataPda,
-    //     signer: voter.publicKey,
-    //     voteManager: voteManagerPda,
-    //     adminForFee: adminAta,
-    //     project: projectPda,
-    //     mint: token_mint.publicKey,
-    //     token: voterAta,
-    //     tokenProgram: TOKEN_2022_PROGRAM_ID,
-    //     systemProgram: anchor.web3.SystemProgram.programId,
-    //   }
-
-    //   // Step 4: Perform the Vote
-    //   await voteProgram.methods
-    //     .doVote(1) // Round 1
-    //     .accounts(do_vote_accounts)
-    //     .signers([voter]) // Ensure voter is signing here
-    //     .rpc();
+    await voteProgram.methods
+      .doVote(1) // Round 1
+      .accounts(do_vote_accounts)
+      .signers([voter]) // Ensure voter is signing here
+      .rpc();
 
     //   // Step 5: Verify Results
     //   const projectAccount = await voteProgram.account.projectData.fetch(projectPda);
