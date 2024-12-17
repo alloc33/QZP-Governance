@@ -414,18 +414,18 @@ describe("vote-project-tests", () => {
       );
     }
 
-    if (!(await provider.connection.getAccountInfo(adminAta))) {
-      ataTransaction.add(
-        createAssociatedTokenAccountInstruction(
-          provider.publicKey,        // Payer: provider
-          adminAta,
-          TOKEN_2022_PROGRAM_ID,    // Admin ATA owner
-          token_mint.publicKey,
-          TOKEN_2022_PROGRAM_ID,
-          ASSOCIATED_PROGRAM_ID
-        )
-      );
-    }
+    // if (!(await provider.connection.getAccountInfo(adminAta))) {
+    //   ataTransaction.add(
+    //     createAssociatedTokenAccountInstruction(
+    //       provider.publicKey,        // Payer: provider
+    //       adminAta,
+    //       TOKEN_2022_PROGRAM_ID,    // Admin ATA owner
+    //       token_mint.publicKey,
+    //       TOKEN_2022_PROGRAM_ID,
+    //       ASSOCIATED_PROGRAM_ID
+    //     )
+    //   );
+    // }
     await provider.sendAndConfirm(ataTransaction); // No need for extra signers here
 
     console.log(adminAta);
