@@ -387,7 +387,7 @@ describe("vote-project-tests", () => {
 
     const adminAta = await getAssociatedTokenAddress(
       token_mint.publicKey,   // Mint address
-      admin_wallet.publicKey, // Admin's wallet public key (vote_manager.admin)
+      voteManagerPda,         // Owner (admin's PDA)
       true,                   // Token-2022 compatibility
       TOKEN_2022_PROGRAM_ID   // Token-2022 program
     );
@@ -402,9 +402,9 @@ describe("vote-project-tests", () => {
     // Create the ATA
     const ataTransaction = new anchor.web3.Transaction().add(
       createAssociatedTokenAccountInstruction(
-        provider.publicKey,       // Payer for account creation
+        admin_wallet.publicKey,   // Payer for account creation
         adminAta,                 // Admin ATA
-        admin_wallet.publicKey,   // Owner of the ATA (vote_manager.admin)
+        voteManagerPda,           // Owner of the ATA (derived PDA for vote_manager)
         token_mint.publicKey,     // Mint address
         TOKEN_2022_PROGRAM_ID,    // Token-2022 Program
         ASSOCIATED_PROGRAM_ID     // Associated Token Program for Token-2022

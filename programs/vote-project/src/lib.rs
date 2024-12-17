@@ -196,8 +196,8 @@ mod vote_project {
         pub vote_manager: Account<'info, VoteManager>, // Vote manager account
         #[account(
             mut,
-            // token::authority = vote_manager.admin, // Ensure admin owns this ATA
-            // token::mint = mint.key()
+            token::authority = vote_manager.key(), // Ensure admin owns this ATA
+            token::mint = mint.key()
         )]
         pub admin_for_fee: InterfaceAccount<'info, TokenAccount>,
         #[account(mut)]
