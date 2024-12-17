@@ -6,12 +6,17 @@ use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 declare_id!("Di7sLAGVcawC6Wqat2KRacKHQFF2S4RfyGPTCQBJoET3");
 
-// Specify your (admin's) public key assuming that your private key is in PATH (e.g.
-// ~/.config/solana/id.json)
 const ADMIN_PUBKEY: &str = "2vJe2h4WnJiemMq7v6qu6zacunspeRqx8VPq6ZhjyA5X";
 
 #[program]
 mod vote_project {
+    // use anchor_spl::token::TransferChecked;
+
+    use anchor_spl::token_2022::{
+        spl_token_2022::{instruction::AuthorityType, onchain::invoke_transfer_checked},
+        SetAuthority,
+    };
+
     use super::*;
 
     pub fn initialize(
@@ -65,8 +70,6 @@ mod vote_project {
         Ok(())
     }
 
-    // WARN: Ensure idx is unique across rounds. Currently, it is possible to reuse the same idx in
-    // different rounds, which may cause confusion.
     pub fn add_project(ctx: Context<NewVoteProject>, idx: String) -> Result<()> {
         ctx.accounts.project_data.vote_manager = ctx.accounts.vote_manager.admin;
         ctx.accounts.project_data.idx = idx;
@@ -80,20 +83,20 @@ mod vote_project {
 
     // We're using `round` to check project_data PDA in account constraints
     pub fn do_vote(ctx: Context<Vouter>, _round: u8) -> Result<()> {
-        // INFO: Double vote or incorrect round cases are being handled through account constraints.
-
-        // Prevent double voting by using PDA constraints
-        let my_account = &ctx.accounts.token;
-
-        // Ensure sufficient token balance for the voting fee
+        // Prevent double voting and ensure sufficient tokens
         require!(
-            my_account.amount >= ctx.accounts.vote_manager.vote_fee,
+            ctx.accounts.token.amount >= ctx.accounts.vote_manager.vote_fee,
             VoteError::InsufficientTokens
         );
 
-        // Increment the vote counts
-        ctx.accounts.project.vote_count += 1; // Increment project votes
-        ctx.accounts.vouter_data.vote_count += 1; // Increment voter votes
+        require!(
+            ctx.accounts.admin_for_fee.mint == ctx.accounts.mint.key(),
+            VoteError::WrongMint
+        );
+
+        // Increment vote counts
+        ctx.accounts.project.vote_count += 1;
+        ctx.accounts.vouter_data.vote_count += 1;
         ctx.accounts.vouter_data.last_voted_round = ctx.accounts.project.vote_round;
         ctx.accounts.vouter_data.vouter = ctx.accounts.signer.key();
         ctx.accounts.vouter_data.project_name = (*ctx.accounts.project.idx).to_string();
@@ -105,23 +108,34 @@ mod vote_project {
             ctx.accounts.project.vote_count
         );
 
-        // let cpi_accounts = anchor_spl::token_interface::TransferChecked {
-        //     from: ctx.accounts.token.to_account_info(),
-        //     to: ctx.accounts.admin_for_fee.to_account_info(),
-        //     mint: ctx.accounts.mint.to_account_info(),
-        //     authority: ctx.accounts.signer.to_account_info(),
-        // };
+        // Prepare CPI accounts for transfer_checked
+        let cpi_accounts = anchor_spl::token_interface::MintTo {
+            mint: ctx.accounts.mint.to_account_info(),
+            to: ctx.accounts.admin_for_fee.to_account_info(),
+            authority: ctx.accounts.signer.to_account_info(),
+        };
 
-        // let cpi_program = ctx.accounts.token_program.to_account_info();
-        // let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+        // Use CpiContext::new instead of new_with_signer
+        let cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts);
 
-        // // Transfer QZL tokens as the voting fee (use transfer_checked)
-        // let token_decimals = 0; // Replace with actual token decimals if not zero
-        // anchor_spl::token_interface::transfer_checked(
-        //     cpi_ctx,
-        //     ctx.accounts.vote_manager.vote_fee,
-        //     token_decimals,
-        // )?;
+        // Initialize the mint without transfer_hook
+        // Then mint the total supply to the treasury ATA
+        anchor_spl::token_interface::mint_to(
+            cpi_ctx, 10000000, // Total supply, e.g., 420_000_000
+        )?;
+
+        // Optionally, revoke the mint authority to make the supply fixed
+        anchor_spl::token_interface::set_authority(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                SetAuthority {
+                    account_or_mint: ctx.accounts.mint.to_account_info(),
+                    current_authority: ctx.accounts.vote_manager.to_account_info(),
+                },
+            ),
+            AuthorityType::MintTokens,
+            None, // Revoke authority
+        )?;
 
         msg!(
             "Voting fee of {} QZL tokens transferred to {}",
@@ -194,11 +208,7 @@ mod vote_project {
         pub signer: Signer<'info>, // The voter's wallet (authority for token transfer)
         #[account(mut)]
         pub vote_manager: Account<'info, VoteManager>, // Vote manager account
-        #[account(
-            mut,
-            token::authority = vote_manager.key(), // Ensure admin owns this ATA
-            token::mint = mint.key()
-        )]
+        #[account(mut)]
         pub admin_for_fee: InterfaceAccount<'info, TokenAccount>,
         #[account(mut)]
         pub project: Account<'info, ProjectData>, // Project being voted for
@@ -251,5 +261,7 @@ mod vote_project {
         DoubleInitAttempt,
         #[msg("Not enough QZL tokens")]
         InsufficientTokens,
+        #[msg("WrongMint")]
+        WrongMint,
     }
 }

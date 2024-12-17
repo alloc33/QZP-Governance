@@ -3,9 +3,10 @@ use anchor_lang::{prelude::*, solana_program::entrypoint::ProgramResult};
 use anchor_spl::{
     associated_token::AssociatedToken,
     token_2022::spl_token_2022::extension::{
-        group_member_pointer::GroupMemberPointer, metadata_pointer::MetadataPointer,
-        mint_close_authority::MintCloseAuthority, permanent_delegate::PermanentDelegate,
-        transfer_hook::TransferHook,
+        group_member_pointer::GroupMemberPointer,
+        metadata_pointer::MetadataPointer,
+        mint_close_authority::MintCloseAuthority,
+        permanent_delegate::PermanentDelegate,
     },
     token_interface::{
         spl_token_metadata_interface::state::TokenMetadata, token_metadata_initialize, Mint,
@@ -28,7 +29,6 @@ pub struct CreateMintAccountArgs {
 
 #[derive(Accounts)]
 pub struct MintTo<'info> {
-    #[account(mut)]
     pub mint: Box<InterfaceAccount<'info, Mint>>,
     #[account(mut)]
     pub token_account: Box<InterfaceAccount<'info, TokenAccount>>,
@@ -60,8 +60,6 @@ pub struct CreateMintAccount<'info> {
         extensions::metadata_pointer::metadata_address = mint,
         extensions::group_member_pointer::authority = authority,
         extensions::group_member_pointer::member_address = mint,
-        extensions::transfer_hook::authority = authority,
-        extensions::transfer_hook::program_id = crate::ID,
         extensions::close_authority::authority = authority,
         extensions::permanent_delegate::delegate = authority,
     )]
@@ -145,16 +143,6 @@ pub fn handler(ctx: Context<CreateMintAccount>, args: CreateMintAccountArgs) -> 
         close_authority.close_authority,
         OptionalNonZeroPubkey::try_from(authority_key)?
     );
-    let transfer_hook = get_mint_extension_data::<TransferHook>(mint_data)?;
-    let program_id: Option<Pubkey> = Some(ctx.program_id.key());
-    assert_eq!(
-        transfer_hook.authority,
-        OptionalNonZeroPubkey::try_from(authority_key)?
-    );
-    assert_eq!(
-        transfer_hook.program_id,
-        OptionalNonZeroPubkey::try_from(program_id)?
-    );
     let group_member_pointer = get_mint_extension_data::<GroupMemberPointer>(mint_data)?;
     assert_eq!(
         group_member_pointer.authority,
@@ -202,8 +190,6 @@ pub struct CheckMintExtensionConstraints<'info> {
         extensions::metadata_pointer::metadata_address = mint,
         extensions::group_member_pointer::authority = authority,
         extensions::group_member_pointer::member_address = mint,
-        extensions::transfer_hook::authority = authority,
-        extensions::transfer_hook::program_id = crate::ID,
         extensions::close_authority::authority = authority,
         extensions::permanent_delegate::delegate = authority,
     )]
