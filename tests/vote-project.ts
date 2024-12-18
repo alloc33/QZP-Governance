@@ -170,8 +170,6 @@ describe("vote-project-tests", () => {
 
     // Send and confirm the transaction
     await provider.sendAndConfirm(ataTransaction);
-    console.log("Voter ATA created successfully:", voterAta.toBase58());
-
     const top_up_user_accs = {
       fromAta: mintTokenAccount, // Use mint_token_account as the source
       toAta: voterAta,           // Voter's ATA (destination)
@@ -185,7 +183,52 @@ describe("vote-project-tests", () => {
       .signers([(admin_wallet as anchor.Wallet).payer]) // Ensure admin_wallet is signing
       .rpc();
 
-    console.log("Tokens transferred successfully.");
+    // Add a project
+    let add_project_accounts = {
+      projectData: projectPda,
+      voteManager: voteManagerPda,
+      owner: admin_wallet.publicKey,
+      systemProgram: anchor.web3.SystemProgram.programId,
+    }
+
+    await voteProgram.methods
+      .addProject(projectIdx)
+      .accounts(add_project_accounts)
+      .rpc();
+
+    // Set up accounts for do_vote
+    let do_vote_accounts = {
+      vouterData: voterDataPda,
+      signer: voter.publicKey,
+      voteManager: voteManagerPda,
+      adminForFee: mintTokenAccount,
+      project: projectPda,
+      mint: token_mint.publicKey,
+      token: voterAta,
+      tokenProgram: TOKEN_2022_PROGRAM_ID,
+      systemProgram: anchor.web3.SystemProgram.programId,
+    }
+
+    // Print the derived accounts for verification
+    console.log("From (token):", voterAta.toBase58());
+    console.log("To (mintTokenAccount):", mintTokenAccount.toBase58());
+    console.log("Mint:", token_mint.publicKey.toBase58());
+    console.log("Authority:", voter.publicKey.toBase58());
+
+    // Perform the vote
+    let tx = await voteProgram.methods
+      .doVote(1) // Round 1
+      .accounts(do_vote_accounts)
+      .signers([voter]) // Ensure voter is signing here
+      .rpc();
+
+    // // Optionally, verify results
+    // const projectAccount = await voteProgram.account.projectData.fetch(projectPda);
+    // const voterAccount = await voteProgram.account.vouterData.fetch(voterDataPda);
+
+    // expect(projectAccount.voteCount.toNumber()).to.be.greaterThan(0);
+    // expect(voterAccount.voteCount.toNumber()).to.be.greaterThan(0);
+    // expect(voterAccount.lastVotedRound).to.equal(1);
   });
 
   // it("Admin Initialization with Incorrect Admin Key", async () => {
