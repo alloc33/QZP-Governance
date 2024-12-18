@@ -352,6 +352,7 @@ describe("qzl-labs-tests", () => {
    * Purpose: Verify that the VoteManager is correctly initialized with the admin's key.
    */
   it("Admin Initialization with Correct Admin Key", async () => {
+    console.log("\n");
     // Fetch the current state of the VoteManager account.
     const voteManagerAccount = await program.account.voteManager.fetch(voteManagerPda);
 
