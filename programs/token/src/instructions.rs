@@ -68,7 +68,7 @@ pub struct CreateMintAccount<'info> {
         payer = payer,
         associated_token::token_program = token_program,
         associated_token::mint = mint,
-        associated_token::authority = receiver,
+        associated_token::authority = authority, // Admin authority
     )]
     pub mint_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
     /// CHECK: This account's data is a buffer of TLV data
@@ -219,10 +219,12 @@ pub fn handler(ctx: Context<CreateMintAccount>, args: CreateMintAccountArgs) -> 
 
 #[derive(Accounts)]
 pub struct TransferSplTokens<'info> {
-    #[account(mut)]
-    pub from_ata: Box<InterfaceAccount<'info, TokenAccount>>, // The mint's token account
-    #[account(mut)]
-    pub to_ata: Box<InterfaceAccount<'info, TokenAccount>>, // The recipient's token account
+    #[account(mut)] // Ensure the source ATA is writable
+    pub from_ata: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(mut)] // Ensure the destination ATA is writable
+    pub to_ata: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(signer)] // The authority for the `from_ata` must sign
+    pub authority: Signer<'info>,
     pub token_program: Program<'info, Token2022>,
 }
 
