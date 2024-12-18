@@ -1,5 +1,4 @@
 use anchor_lang::{prelude::*, solana_program::entrypoint::ProgramResult};
-
 use anchor_spl::{
     associated_token::AssociatedToken,
     token_2022::spl_token_2022::extension::{
@@ -18,48 +17,65 @@ use crate::{
     update_account_lamports_to_minimum_balance, META_LIST_ACCOUNT_SEED,
 };
 
+/// Arguments required to create a new mint account.
+///
+/// **Business Logic:**
+/// - Encapsulates all necessary metadata and initial supply information for token creation.
+/// - Ensures consistency and integrity of token properties upon initialization.
 #[derive(AnchorDeserialize, AnchorSerialize)]
 pub struct CreateMintAccountArgs {
-    pub name: String,
-    pub symbol: String,
-    pub uri: String,
-    pub initial_supply: u64,
+    pub name: String,        // Name of the token.
+    pub symbol: String,      // Symbol representing the token.
+    pub uri: String,         // URI pointing to the token's metadata.
+    pub initial_supply: u64, // Initial number of tokens to mint.
 }
 
+/// Accounts required for transferring QZL tokens.
+///
+/// **Business Logic:**
+/// - Facilitates secure and authorized transfer of tokens between accounts.
+/// - Ensures that transfers are executed using the correct token mint and authority.
 #[derive(Accounts)]
 pub struct MintTo<'info> {
-    pub mint: Box<InterfaceAccount<'info, Mint>>,
+    pub mint: Box<InterfaceAccount<'info, Mint>>, // Token mint account.
     #[account(mut)]
-    pub token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub token_account: Box<InterfaceAccount<'info, TokenAccount>>, // Destination token account.
     #[account(signer)]
-    pub authority: Signer<'info>,
-    pub token_program: Interface<'info, TokenInterface>,
+    pub authority: Signer<'info>, // Authority of the source token account.
+    pub token_program: Interface<'info, TokenInterface>, // SPL Token program interface.
 }
 
+/// Accounts required to create a new mint account with extensions and associated metadata.
+///
+/// **Business Logic:**
+/// - Initializes a new token mint with specific extensions like MetadataPointer and
+///   GroupMemberPointer.
+/// - Sets up the associated token account and additional metadata accounts.
+/// - Ensures proper authority settings for minting, freezing, and delegating.
 #[derive(Accounts)]
 #[instruction(args: CreateMintAccountArgs)]
 pub struct CreateMintAccount<'info> {
     #[account(mut)]
-    pub payer: Signer<'info>,
+    pub payer: Signer<'info>, // Payer for the transaction fees.
     #[account(mut)]
     /// CHECK: can be any account
-    pub authority: Signer<'info>,
+    pub authority: Signer<'info>, // Authority who controls the mint.
     #[account(
         init,
         signer,
         payer = payer,
         mint::token_program = token_program,
-        mint::decimals = 0,
-        mint::authority = authority,
-        mint::freeze_authority = authority,
-        extensions::metadata_pointer::authority = authority,
-        extensions::metadata_pointer::metadata_address = mint,
-        extensions::group_member_pointer::authority = authority,
-        extensions::group_member_pointer::member_address = mint,
-        extensions::close_authority::authority = authority,
-        extensions::permanent_delegate::delegate = authority,
+        mint::decimals = 0, // Token has no decimal places.
+        mint::authority = authority, // Sets the authority for minting.
+        mint::freeze_authority = authority, // Authority that can freeze the mint.
+        extensions::metadata_pointer::authority = authority, // Sets metadata pointer authority.
+        extensions::metadata_pointer::metadata_address = mint, // Associates metadata with the mint.
+        extensions::group_member_pointer::authority = authority, // Sets group member pointer authority.
+        extensions::group_member_pointer::member_address = mint, // Associates group member pointer with the mint.
+        extensions::close_authority::authority = authority, // Authority that can close the mint.
+        extensions::permanent_delegate::delegate = authority, // Sets a permanent delegate for the mint.
     )]
-    pub mint: Box<InterfaceAccount<'info, Mint>>,
+    pub mint: Box<InterfaceAccount<'info, Mint>>, // The new mint account being created.
     #[account(
         init,
         payer = payer,
@@ -67,22 +83,37 @@ pub struct CreateMintAccount<'info> {
         associated_token::mint = mint,
         associated_token::authority = authority, // Admin authority
     )]
-    pub mint_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub mint_token_account: Box<InterfaceAccount<'info, TokenAccount>>, /* Associated Token Account for the mint. */
     /// CHECK: This account's data is a buffer of TLV data
     #[account(
         init,
-        space = get_meta_list_size(None),
-        seeds = [META_LIST_ACCOUNT_SEED, mint.key().as_ref()],
+        space = get_meta_list_size(None), // Allocates space based on metadata.
+        seeds = [META_LIST_ACCOUNT_SEED, mint.key().as_ref()], // Seeds for PDA derivation.
         bump,
         payer = payer,
     )]
-    pub extra_metas_account: UncheckedAccount<'info>,
-    pub system_program: Program<'info, System>,
-    pub associated_token_program: Program<'info, AssociatedToken>,
-    pub token_program: Program<'info, Token2022>,
+    pub extra_metas_account: UncheckedAccount<'info>, // Account to hold additional metadata.
+    pub system_program: Program<'info, System>, // Solana System program.
+    pub associated_token_program: Program<'info, AssociatedToken>, /* Associated Token program
+                                                 * interface. */
+    pub token_program: Program<'info, Token2022>, // SPL Token-2022 program interface.
 }
 
 impl<'info> CreateMintAccount<'info> {
+    /// Initializes token metadata using CPI with the TokenMetadataInitialize interface.
+    ///
+    /// **Business Logic:**
+    /// - Sets up on-chain metadata for the token, including name, symbol, and URI.
+    /// - Associates the metadata with the token mint and authority.
+    /// - Ensures that the metadata is correctly linked to the mint account.
+    ///
+    /// **Parameters:**
+    /// - `name`: Name of the token.
+    /// - `symbol`: Symbol representing the token.
+    /// - `uri`: URI pointing to the token's metadata.
+    ///
+    /// **Returns:**
+    /// - `ProgramResult`: Indicates success or failure of the metadata initialization.
     fn initialize_token_metadata(
         &self,
         name: String,
@@ -92,8 +123,8 @@ impl<'info> CreateMintAccount<'info> {
         let cpi_accounts = TokenMetadataInitialize {
             token_program_id: self.token_program.to_account_info(),
             mint: self.mint.to_account_info(),
-            metadata: self.mint.to_account_info(), /* metadata account is the mint, since data is
-                                                    * stored in mint */
+            metadata: self.mint.to_account_info(), /* Metadata account is the mint itself since
+                                                    * data is stored there */
             mint_authority: self.authority.to_account_info(),
             update_authority: self.authority.to_account_info(),
         };
@@ -103,8 +134,23 @@ impl<'info> CreateMintAccount<'info> {
     }
 }
 
+/// Handler for creating a new mint account.
+///
+/// **Business Logic:**
+/// - Initializes token metadata and verifies its integrity.
+/// - Sets up various extensions to enhance token functionalities.
+/// - Mints the initial supply of tokens to the associated token account.
+/// - Revokes mint authority to prevent further minting, ensuring a fixed total supply.
+/// - Ensures the mint account is rent-exempt by updating lamports if necessary.
+///
+/// **Parameters:**
+/// - `ctx`: Context containing the accounts required for mint account creation.
+/// - `args`: Arguments containing token metadata and initial supply information.
+///
+/// **Returns:**
+/// - `Result<()>`: Indicates success or failure of the mint account creation process.
 pub fn handler(ctx: Context<CreateMintAccount>, args: CreateMintAccountArgs) -> Result<()> {
-    // Initialize token metadata
+    // Initialize token metadata by invoking the metadata initialization CPI.
     msg!("Initializing token metadata...");
     ctx.accounts.initialize_token_metadata(
         args.name.clone(),
@@ -113,11 +159,11 @@ pub fn handler(ctx: Context<CreateMintAccount>, args: CreateMintAccountArgs) -> 
     )?;
     msg!("Token metadata initialized.");
 
-    // Reload mint account to ensure it's updated
+    // Reload the mint account to ensure it's updated with the latest data.
     ctx.accounts.mint.reload()?;
     let mint_data = &mut ctx.accounts.mint.to_account_info();
 
-    // Retrieve and verify token metadata
+    // Retrieve and verify token metadata extension data.
     let metadata = get_mint_extensible_extension_data::<TokenMetadata>(mint_data)?;
     assert_eq!(metadata.mint, ctx.accounts.mint.key());
     assert_eq!(metadata.name, args.name);
@@ -125,7 +171,7 @@ pub fn handler(ctx: Context<CreateMintAccount>, args: CreateMintAccountArgs) -> 
     assert_eq!(metadata.uri, args.uri);
     msg!("Token metadata verified.");
 
-    // Verify MetadataPointer extension
+    // Verify the MetadataPointer extension to ensure correct metadata association.
     let metadata_pointer = get_mint_extension_data::<MetadataPointer>(mint_data)?;
     let mint_key: Option<Pubkey> = Some(ctx.accounts.mint.key());
     let authority_key: Option<Pubkey> = Some(ctx.accounts.authority.key());
@@ -139,7 +185,7 @@ pub fn handler(ctx: Context<CreateMintAccount>, args: CreateMintAccountArgs) -> 
     );
     msg!("MetadataPointer extension verified.");
 
-    // Verify PermanentDelegate extension
+    // Verify the PermanentDelegate extension to ensure the delegate is correctly set.
     let permanent_delegate = get_mint_extension_data::<PermanentDelegate>(mint_data)?;
     assert_eq!(
         permanent_delegate.delegate,
@@ -147,7 +193,7 @@ pub fn handler(ctx: Context<CreateMintAccount>, args: CreateMintAccountArgs) -> 
     );
     msg!("PermanentDelegate extension verified.");
 
-    // Verify MintCloseAuthority extension
+    // Verify the MintCloseAuthority extension to ensure the close authority is correctly set.
     let close_authority = get_mint_extension_data::<MintCloseAuthority>(mint_data)?;
     assert_eq!(
         close_authority.close_authority,
@@ -155,7 +201,7 @@ pub fn handler(ctx: Context<CreateMintAccount>, args: CreateMintAccountArgs) -> 
     );
     msg!("MintCloseAuthority extension verified.");
 
-    // Verify GroupMemberPointer extension
+    // Verify the GroupMemberPointer extension to ensure proper group membership.
     let group_member_pointer = get_mint_extension_data::<GroupMemberPointer>(mint_data)?;
     assert_eq!(
         group_member_pointer.authority,
@@ -180,6 +226,7 @@ pub fn handler(ctx: Context<CreateMintAccount>, args: CreateMintAccountArgs) -> 
         cpi_accounts_mint_to,
     );
 
+    // Execute the minting of tokens to the associated token account.
     anchor_spl::token_2022::mint_to(cpi_ctx_mint_to, args.initial_supply)?;
     msg!("Initial supply minted.");
 
@@ -195,6 +242,7 @@ pub fn handler(ctx: Context<CreateMintAccount>, args: CreateMintAccountArgs) -> 
         cpi_accounts_set_authority,
     );
 
+    // Revoke the mint authority by setting it to `None`, preventing further minting.
     anchor_spl::token_2022::set_authority(
         cpi_ctx_set_authority,
         anchor_spl::token_2022::spl_token_2022::instruction::AuthorityType::MintTokens,
@@ -214,39 +262,43 @@ pub fn handler(ctx: Context<CreateMintAccount>, args: CreateMintAccountArgs) -> 
     Ok(())
 }
 
+/// Accounts required for transferring QZL tokens.
+///
+/// **Business Logic:**
+/// - Ensures that both the source and destination token accounts are mutable.
 #[derive(Accounts)]
 pub struct TransferQZLTokens<'info> {
-    #[account(mut)] // Ensure the source ATA is writable
-    pub from_ata: Box<InterfaceAccount<'info, TokenAccount>>,
-    #[account(mut)] // Ensure the destination ATA is writable
-    pub to_ata: Box<InterfaceAccount<'info, TokenAccount>>,
-    #[account(signer)] // The authority for the `from_ata` must sign
-    pub authority: Signer<'info>,
-    // Bind to QZL token mint! Other mint address will reject transaction.
+    #[account(mut)] // Ensure the source token account is writable.
+    pub from_ata: Box<InterfaceAccount<'info, TokenAccount>>, // Source Associated Token Account.
+    #[account(mut)] // Ensure the destination token account is writable.
+    pub to_ata: Box<InterfaceAccount<'info, TokenAccount>>, /* Destination Associated Token
+                                                             * Account. */
+    #[account(signer)] // The authority for the `from_ata` must sign the transaction.
+    pub authority: Signer<'info>, // Authority of the source token account.
+    // Bind to QZL token mint! Other mint addresses will reject the transaction.
     #[account(address = from_ata.mint)]
-    pub mint: Box<InterfaceAccount<'info, Mint>>,
-    pub token_program: Program<'info, Token2022>,
+    pub mint: Box<InterfaceAccount<'info, Mint>>, // Token mint associated with the transfer.
+    pub token_program: Program<'info, Token2022>, // SPL Token-2022 program interface.
 }
 
+/// Accounts required to check constraints related to mint extensions.
+///
+/// **Business Logic:**
+/// - Validates that all necessary extensions are correctly configured for the mint.
+/// - Ensures that the authority settings align with the governance requirements.
 #[derive(Accounts)]
 #[instruction()]
 pub struct CheckMintExtensionConstraints<'info> {
     #[account(mut)]
     /// CHECK: can be any account
-    pub authority: Signer<'info>,
+    pub authority: Signer<'info>, // Authority managing the mint extensions.
     #[account(
-        extensions::metadata_pointer::authority = authority,
-        extensions::metadata_pointer::metadata_address = mint,
-        extensions::group_member_pointer::authority = authority,
-        extensions::group_member_pointer::member_address = mint,
-        extensions::close_authority::authority = authority,
-        extensions::permanent_delegate::delegate = authority,
+        extensions::metadata_pointer::authority = authority, // Ensures MetadataPointer authority is correct.
+        extensions::metadata_pointer::metadata_address = mint, // Ensures MetadataPointer is associated with the mint.
+        extensions::group_member_pointer::authority = authority, // Ensures GroupMemberPointer authority is correct.
+        extensions::group_member_pointer::member_address = mint, // Ensures GroupMemberPointer is associated with the mint.
+        extensions::close_authority::authority = authority, // Ensures MintCloseAuthority is correct.
+        extensions::permanent_delegate::delegate = authority, // Ensures PermanentDelegate is correctly set.
     )]
-    pub mint: Box<InterfaceAccount<'info, Mint>>,
-}
-
-#[error_code]
-pub enum QZLTokenError {
-    #[msg("Unable to initialize token mint")]
-    UnableToInitializeMint,
+    pub mint: Box<InterfaceAccount<'info, Mint>>, // The mint account being checked.
 }
