@@ -10,7 +10,7 @@ declare_id!("Di7sLAGVcawC6Wqat2KRacKHQFF2S4RfyGPTCQBJoET3");
 const ADMIN_PUBKEY: &str = "2vJe2h4WnJiemMq7v6qu6zacunspeRqx8VPq6ZhjyA5X";
 
 #[program]
-mod vote_project {
+mod governance {
     use super::*;
 
     /// Initializes the VoteManager account with essential parameters.

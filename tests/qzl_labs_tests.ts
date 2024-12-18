@@ -1,7 +1,7 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { expect } from "chai";
-import { VoteProject } from "../target/types/vote_project";
+import { Governance } from "../target/types/governance";
 import {
   createAssociatedTokenAccountInstruction,
   getAssociatedTokenAddress,
@@ -27,7 +27,7 @@ const provider = anchor.AnchorProvider.env();
 anchor.setProvider(provider);
 
 // Reference to the deployed VoteProject program.
-const program = anchor.workspace.VoteProject as Program<VoteProject>;
+const program = anchor.workspace.Governance as Program<Governance>;
 
 // Reference to the TokenExtensions program for handling token-related operations.
 const tokenProgram = anchor.workspace.TokenExtensions as Program<TokenExtensions>;
