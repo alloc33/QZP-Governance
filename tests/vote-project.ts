@@ -33,9 +33,9 @@ const voterMintTokenAccount = getAssociatedTokenAddressSync(
   ASSOCIATED_PROGRAM_ID // Associated Token Program for Token 2022
 );
 
-// WARN: Hardcoded token mint
-// Admin's keypair is being taken from your env (e.g. ~/.config/solana/id.json)
 const admin_wallet = provider.wallet;
+const admin = (admin_wallet as anchor.Wallet).payer;
+
 describe("vote-project-tests", () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
@@ -65,7 +65,6 @@ describe("vote-project-tests", () => {
     let accountsStrict = {
       payer: provider.publicKey,
       authority: provider.publicKey,
-      receiver: provider.publicKey,
       mint: token_mint.publicKey,
       mintTokenAccount: associatedAddress({
         mint: token_mint.publicKey,
@@ -85,7 +84,7 @@ describe("vote-project-tests", () => {
         initialSupply: new anchor.BN(QZL_TOKEN_INITIAL_SUPPLY)
       })
       .accountsStrict(accountsStrict)
-      .signers([token_mint])
+      .signers([token_mint, (admin_wallet as anchor.Wallet).payer])
       .rpc();
 
     await program.methods
@@ -170,15 +169,17 @@ describe("vote-project-tests", () => {
 
     // Send and confirm the transaction
     await provider.sendAndConfirm(ataTransaction);
+
     const top_up_user_accs = {
-      fromAta: mintTokenAccount, // Use mint_token_account as the source
-      toAta: voterAta,           // Voter's ATA (destination)
+      fromAta: mintTokenAccount, // Source ATA
+      toAta: voterAta,           // Destination ATA
+      mint: token_mint.publicKey, // Mint account
       tokenProgram: TOKEN_2022_PROGRAM_ID,
     };
 
     // Transfer QZL tokens to the voter
     await tokenProgram.methods
-      .transferSplTokens(new anchor.BN(10_000)) // Transfer 10,000 QZL
+      .transferQzlTokens(new anchor.BN(10_000)) // Transfer 10,000 QZL
       .accounts(top_up_user_accs)
       .signers([(admin_wallet as anchor.Wallet).payer]) // Ensure admin_wallet is signing
       .rpc();
@@ -215,20 +216,23 @@ describe("vote-project-tests", () => {
     console.log("Mint:", token_mint.publicKey.toBase58());
     console.log("Authority:", voter.publicKey.toBase58());
 
+    const mintTokenAccountInfo = await provider.connection.getParsedAccountInfo(mintTokenAccount);
+    console.log("Mint Token Account Info:", mintTokenAccountInfo.value.data.toString);
+
     // Perform the vote
-    let tx = await voteProgram.methods
+    await voteProgram.methods
       .doVote(1) // Round 1
       .accounts(do_vote_accounts)
       .signers([voter]) // Ensure voter is signing here
       .rpc();
 
-    // // Optionally, verify results
-    // const projectAccount = await voteProgram.account.projectData.fetch(projectPda);
-    // const voterAccount = await voteProgram.account.vouterData.fetch(voterDataPda);
+    // Optionally, verify results
+    const projectAccount = await voteProgram.account.projectData.fetch(projectPda);
+    const voterAccount = await voteProgram.account.vouterData.fetch(voterDataPda);
 
-    // expect(projectAccount.voteCount.toNumber()).to.be.greaterThan(0);
-    // expect(voterAccount.voteCount.toNumber()).to.be.greaterThan(0);
-    // expect(voterAccount.lastVotedRound).to.equal(1);
+    expect(projectAccount.voteCount.toNumber()).to.be.greaterThan(0);
+    expect(voterAccount.voteCount.toNumber()).to.be.greaterThan(0);
+    expect(voterAccount.lastVotedRound).to.equal(1);
   });
 
   // it("Admin Initialization with Incorrect Admin Key", async () => {

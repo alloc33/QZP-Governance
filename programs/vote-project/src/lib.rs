@@ -83,18 +83,19 @@ mod vote_project {
 
     // We're using `round` to check project_data PDA in account constraints
     pub fn do_vote(ctx: Context<Vouter>, _round: u8) -> Result<()> {
-        // Prevent double voting and ensure sufficient tokens
+        // Ensure the voter has sufficient tokens for the vote fee
         require!(
             ctx.accounts.token.amount >= ctx.accounts.vote_manager.vote_fee,
             VoteError::InsufficientTokens
         );
 
+        // Ensure the mint matches between the voter's token account and the vote fee account
         require!(
             ctx.accounts.admin_for_fee.mint == ctx.accounts.mint.key(),
             VoteError::WrongMint
         );
 
-        // Increment vote counts
+        // Increment vote counts for the project and voter
         ctx.accounts.project.vote_count += 1;
         ctx.accounts.vouter_data.vote_count += 1;
         ctx.accounts.vouter_data.last_voted_round = ctx.accounts.project.vote_round;
@@ -108,40 +109,23 @@ mod vote_project {
             ctx.accounts.project.vote_count
         );
 
-        // Prepare CPI accounts for transfer_checked
-        let cpi_accounts = anchor_spl::token_interface::MintTo {
+        // Transfer the voting fee from the voter's token account to the admin's fee account
+        let cpi_accounts = anchor_spl::token_interface::TransferChecked {
             mint: ctx.accounts.mint.to_account_info(),
+            from: ctx.accounts.token.to_account_info(),
             to: ctx.accounts.admin_for_fee.to_account_info(),
-            authority: ctx.accounts.signer.to_account_info(),
+            authority: ctx.accounts.signer.to_account_info(), /* The voter must sign for this
+                                                               * transfer */
         };
 
-        // Use CpiContext::new instead of new_with_signer
         let cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts);
 
-        // Initialize the mint without transfer_hook
-        // Then mint the total supply to the treasury ATA
-        anchor_spl::token_interface::mint_to(
-            cpi_ctx, 10000000, // Total supply, e.g., 420_000_000
-        )?;
-
-        // Optionally, revoke the mint authority to make the supply fixed
-        anchor_spl::token_interface::set_authority(
-            CpiContext::new(
-                ctx.accounts.token_program.to_account_info(),
-                SetAuthority {
-                    account_or_mint: ctx.accounts.mint.to_account_info(),
-                    current_authority: ctx.accounts.vote_manager.to_account_info(),
-                },
-            ),
-            AuthorityType::MintTokens,
-            None, // Revoke authority
-        )?;
-
-        msg!(
-            "Voting fee of {} QZL tokens transferred to {}",
+        // Transfer the vote fee (amount = vote_fee)
+        anchor_spl::token_interface::transfer_checked(
+            cpi_ctx,
             ctx.accounts.vote_manager.vote_fee,
-            ctx.accounts.admin_for_fee.key()
-        );
+            0,
+        )?;
 
         Ok(())
     }

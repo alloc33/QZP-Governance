@@ -44,9 +44,6 @@ pub struct CreateMintAccount<'info> {
     #[account(mut)]
     /// CHECK: can be any account
     pub authority: Signer<'info>,
-    #[account()]
-    /// CHECK: can be any account
-    pub receiver: UncheckedAccount<'info>,
     #[account(
         init,
         signer,
@@ -218,13 +215,16 @@ pub fn handler(ctx: Context<CreateMintAccount>, args: CreateMintAccountArgs) -> 
 }
 
 #[derive(Accounts)]
-pub struct TransferSplTokens<'info> {
+pub struct TransferQZLTokens<'info> {
     #[account(mut)] // Ensure the source ATA is writable
     pub from_ata: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(mut)] // Ensure the destination ATA is writable
     pub to_ata: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(signer)] // The authority for the `from_ata` must sign
     pub authority: Signer<'info>,
+    // Bind to QZL token mint! Other mint address will reject transaction.
+    #[account(address = from_ata.mint)]
+    pub mint: Box<InterfaceAccount<'info, Mint>>,
     pub token_program: Program<'info, Token2022>,
 }
 
