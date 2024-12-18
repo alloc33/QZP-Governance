@@ -7,7 +7,7 @@ use anchor_spl::{
     },
     token_interface::{
         spl_token_metadata_interface::state::TokenMetadata, token_metadata_initialize, Mint,
-        Token2022, TokenAccount, TokenInterface, TokenMetadataInitialize,
+        Token2022, TokenAccount, TokenMetadataInitialize,
     },
 };
 use spl_pod::optional_keys::OptionalNonZeroPubkey;
@@ -28,21 +28,6 @@ pub struct CreateMintAccountArgs {
     pub symbol: String,      // Symbol representing the token.
     pub uri: String,         // URI pointing to the token's metadata.
     pub initial_supply: u64, // Initial number of tokens to mint.
-}
-
-/// Accounts required for transferring QZL tokens.
-///
-/// **Business Logic:**
-/// - Facilitates secure and authorized transfer of tokens between accounts.
-/// - Ensures that transfers are executed using the correct token mint and authority.
-#[derive(Accounts)]
-pub struct MintTo<'info> {
-    pub mint: Box<InterfaceAccount<'info, Mint>>, // Token mint account.
-    #[account(mut)]
-    pub token_account: Box<InterfaceAccount<'info, TokenAccount>>, // Destination token account.
-    #[account(signer)]
-    pub authority: Signer<'info>, // Authority of the source token account.
-    pub token_program: Interface<'info, TokenInterface>, // SPL Token program interface.
 }
 
 /// Accounts required to create a new mint account with extensions and associated metadata.
