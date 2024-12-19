@@ -709,7 +709,7 @@ describe("qzl-labs-tests", () => {
       vouterData: deriveVouterPda(currentRound, voter.publicKey), // Vouter PDA for the voter in round 3.
       signer: voter.publicKey, // Voter's public key.
       voteManager: voteManagerPda, // VoteManager PDA.
-      adminForFee: mintTokenAccount, // Admin's token account for receiving vote fees.
+      adminTokenAccount: mintTokenAccount, // Admin's token account for receiving vote fees.
       project: doubleVoteProjectPda, // Project PDA being voted for.
       mint: tokenMint.publicKey, // Token mint's public key.
       token: voterAta, // Voter's token account.
@@ -740,10 +740,10 @@ describe("qzl-labs-tests", () => {
     }
   });
 
-  /**
-   * Test Case: Voting in the Wrong Round
-   * Purpose: Ensure that voting in a round different from the current active round fails.
-   */
+  // /**
+  //  * Test Case: Voting in the Wrong Round
+  //  * Purpose: Ensure that voting in a round different from the current active round fails.
+  //  */
   it("Voting in the Wrong Round", async () => {
     // Define a project identifier for the wrong round voting test.
     const wrongRoundProjectIdx = "wrongRoundProject";
@@ -773,7 +773,7 @@ describe("qzl-labs-tests", () => {
       vouterData: deriveVouterPda(1, voter.publicKey), // Derive with round 1, assuming current round is 3.
       signer: voter.publicKey, // Voter's public key.
       voteManager: voteManagerPda, // VoteManager PDA.
-      adminForFee: mintTokenAccount, // Admin's token account for receiving vote fees.
+      adminTokenAccount: mintTokenAccount, // Admin's token account for receiving vote fees.
       project: wrongRoundProjectPda, // Project PDA being voted for.
       mint: tokenMint.publicKey, // Token mint's public key.
       token: voterAta, // Voter's token account.
@@ -797,10 +797,10 @@ describe("qzl-labs-tests", () => {
     }
   });
 
-  /**
-   * Test Case: Voting Fee Transfer
-   * Purpose: Verify that the voting fee is correctly transferred from the voter to the admin upon voting.
-   */
+  // /**
+  //  * Test Case: Voting Fee Transfer
+  //  * Purpose: Verify that the voting fee is correctly transferred from the voter to the admin upon voting.
+  //  */
   it("Voting Fee Transfer", async () => {
     // Define a project identifier for the fee transfer test.
     const feeTransferProjectIdx = "feeTransferProject";
@@ -839,7 +839,7 @@ describe("qzl-labs-tests", () => {
       vouterData: deriveVouterPda(4, voter.publicKey), // Vouter PDA for the voter in round 4.
       signer: voter.publicKey, // Voter's public key.
       voteManager: voteManagerPda, // VoteManager PDA.
-      adminForFee: mintTokenAccount, // Admin's token account for receiving vote fees.
+      adminTokenAccount: mintTokenAccount, // Admin's token account for receiving vote fees.
       project: feeTransferProjectPda, // Project PDA being voted for.
       mint: tokenMint.publicKey, // Token mint's public key.
       token: voterAta, // Voter's token account.
@@ -869,10 +869,10 @@ describe("qzl-labs-tests", () => {
     expect(finalAdminBalance).to.equal(initialAdminBalance + 500);
   });
 
-  /**
-   * Test Case: Successful Vote
-   * Purpose: Verify that a valid vote correctly updates the project's vote count and the voter's voting data.
-   */
+  // /**
+  //  * Test Case: Successful Vote
+  //  * Purpose: Verify that a valid vote correctly updates the project's vote count and the voter's voting data.
+  //  */
   it("Successful Vote", async () => {
     // Define a project identifier for the successful vote test.
     const successfulVoteProjectIdx = "successfulVoteProject";
@@ -911,7 +911,7 @@ describe("qzl-labs-tests", () => {
       vouterData: deriveVouterPda(5, voter.publicKey), // Vouter PDA for the voter in round 5.
       signer: voter.publicKey, // Voter's public key.
       voteManager: voteManagerPda, // VoteManager PDA.
-      adminForFee: mintTokenAccount, // Admin's token account for receiving vote fees.
+      adminTokenAccount: mintTokenAccount, // Admin's token account for receiving vote fees.
       project: successfulVoteProjectPda, // Project PDA being voted for.
       mint: tokenMint.publicKey, // Token mint's public key.
       token: voterAta, // Voter's token account.

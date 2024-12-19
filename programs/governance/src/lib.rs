@@ -144,12 +144,6 @@ mod governance {
             VoteError::InsufficientTokens
         );
 
-        // Confirm that the token mint matches the expected mint.
-        require!(
-            ctx.accounts.admin_for_fee.mint == ctx.accounts.mint.key(),
-            VoteError::WrongMint
-        );
-
         // Increment vote counts for the project and the voter.
         ctx.accounts.project.vote_count += 1;
         ctx.accounts.vouter_data.vote_count += 1;
@@ -168,7 +162,7 @@ mod governance {
         let cpi_accounts = anchor_spl::token_interface::TransferChecked {
             mint: ctx.accounts.mint.to_account_info(),
             from: ctx.accounts.token.to_account_info(),
-            to: ctx.accounts.admin_for_fee.to_account_info(),
+            to: ctx.accounts.admin_token_account.to_account_info(),
             authority: ctx.accounts.signer.to_account_info(), /* The voter must authorize this
                                                                * transfer. */
         };
@@ -283,13 +277,21 @@ mod governance {
             bump
             )]
         pub vouter_data: Account<'info, VouterData>, // Tracks the voter's voting activity.
+        #[account(
+            mut,
+            associated_token::token_program = token_program,
+            associated_token::mint = vote_manager.tk_mint,
+            associated_token::authority = vote_manager.admin,
+        )]
+        pub admin_token_account: InterfaceAccount<'info, TokenAccount>, /* Account which store
+                                                                         * initial supply of QZL
+                                                                         * and which is used by
+                                                                         * a program to deduct
+                                                                         * voting fee. */
         #[account(mut)]
         pub signer: Signer<'info>, // The voter's signer account.
         #[account(mut)]
         pub vote_manager: Account<'info, VoteManager>, // Reference to the VoteManager account.
-        #[account(mut)]
-        pub admin_for_fee: InterfaceAccount<'info, TokenAccount>, /* Admin's token account for
-                                                                   * receiving fees. */
         #[account(mut)]
         pub project: Account<'info, ProjectData>, // The project being voted for.
         pub mint: InterfaceAccount<'info, Mint>, // The governance token mint (QZL).
@@ -373,5 +375,8 @@ mod governance {
         InsufficientTokens, // Triggered when a voter lacks sufficient tokens to cast a vote.
         #[msg("WrongMint")]
         WrongMint, // Triggered when the token mint does not match expected values.
+        #[msg("WrongAdminForFee")]
+        WrongAdminForFee,
     }
+
 }
