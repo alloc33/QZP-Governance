@@ -7,7 +7,7 @@ pub use instructions::*;
 pub use utils::*;
 
 // Declare the program ID to associate this Rust program with the deployed Solana program.
-declare_id!("4wYyKpdmL82mehsRdiTCTbCnGCBZjdgbz6vE8J46VQFn");
+declare_id!("4avjKuLNY7Q2PswouSSDGm5rETTqf1t6MA4bMfUjcRjH");
 
 // Define a constant for the administrator's public key.
 // This key is used to authenticate administrative actions within the governance contract.
