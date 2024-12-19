@@ -1020,6 +1020,7 @@ dependencies = [
  "anchor-lang",
  "anchor-spl",
  "solana-program",
+ "solana-security-txt",
 ]
 
 [[package]]
@@ -1508,6 +1509,7 @@ dependencies = [
  "anchor-lang",
  "anchor-spl",
  "solana-program",
+ "solana-security-txt",
  "spl-pod",
  "spl-tlv-account-resolution",
  "spl-transfer-hook-interface",
