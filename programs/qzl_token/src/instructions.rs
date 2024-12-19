@@ -251,8 +251,10 @@ pub fn handler(ctx: Context<CreateMintAccount>, args: CreateMintAccountArgs) -> 
 ///
 /// **Business Logic:**
 /// - Ensures that both the source and destination token accounts are mutable.
+///
+/// INFO: Currently used only in tests
 #[derive(Accounts)]
-pub struct TransferQZLTokens<'info> {
+pub struct TransferTokens<'info> {
     #[account(mut)] // Ensure the source token account is writable.
     pub from_ata: Box<InterfaceAccount<'info, TokenAccount>>, // Source Associated Token Account.
     #[account(mut)] // Ensure the destination token account is writable.

@@ -333,7 +333,7 @@ describe("qzl-labs-tests", () => {
 
       // Execute the token transfer of 10,000 QZL from admin to voter.
       await tokenProgram.methods
-        .transferQzlTokens(new anchor.BN(10_000)) // Amount of QZL tokens to transfer.
+        .transferTokens(new anchor.BN(10_000)) // Amount of QZL tokens to transfer.
         .accounts(transferAccounts)
         .signers([admin]) // Admin signs the transaction.
         .rpc();

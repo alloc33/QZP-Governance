@@ -7,10 +7,11 @@ declare_id!("Di7sLAGVcawC6Wqat2KRacKHQFF2S4RfyGPTCQBJoET3");
 
 // Define a constant for the administrator's public key.
 // This key is used to authenticate administrative actions within the governance contract.
-const ADMIN_PUBKEY: &str = "2vJe2h4WnJiemMq7v6qu6zacunspeRqx8VPq6ZhjyA5X";
+pub const ADMIN_PUBKEY: Pubkey = pubkey!("2vJe2h4WnJiemMq7v6qu6zacunspeRqx8VPq6ZhjyA5X");
 
 #[program]
 mod governance {
+
     use super::*;
 
     /// Initializes the VoteManager account with essential parameters.
@@ -31,15 +32,12 @@ mod governance {
         token_program: Pubkey,
         init_vote_fee: u64,
     ) -> Result<()> {
-        // Attempt to parse the hardcoded admin public key.
-        let trusted_admin_pubkey = Pubkey::try_from(ADMIN_PUBKEY);
-
-        msg!("Pubkey hard {:#?}", trusted_admin_pubkey);
+        msg!("Pubkey hard {:#?}", ADMIN_PUBKEY);
         msg!("Pubkey ctx {}", ctx.accounts.owner.key());
 
         // Validate that the transaction is initiated by the trusted admin.
         require!(
-            trusted_admin_pubkey == Ok(ctx.accounts.owner.key()),
+            ctx.accounts.owner.key() == ADMIN_PUBKEY,
             VoteError::NotAdmin
         );
 
@@ -297,7 +295,7 @@ mod governance {
         pub mint: InterfaceAccount<'info, Mint>, // The governance token mint (QZL).
         #[account(mut)]
         pub token: InterfaceAccount<'info, TokenAccount>, /* Voter's token account holding QZL
-                                                           * tokens. */
+                                                  * tokens. */
         pub token_program: Interface<'info, TokenInterface>, /* Token program interface for
                                                               * token operations. */
         pub system_program: Program<'info, System>, // Solana System program.
