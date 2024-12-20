@@ -709,7 +709,7 @@ describe("qzl-labs-tests", () => {
       vouterData: deriveVouterPda(currentRound, voter.publicKey), // Vouter PDA for the voter in round 3.
       signer: voter.publicKey, // Voter's public key.
       voteManager: voteManagerPda, // VoteManager PDA.
-      adminTokenAccount: mintTokenAccount, // Admin's token account for receiving vote fees.
+      adminTokenAccount: mintTokenAccount,
       project: doubleVoteProjectPda, // Project PDA being voted for.
       mint: tokenMint.publicKey, // Token mint's public key.
       token: voterAta, // Voter's token account.

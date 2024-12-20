@@ -277,6 +277,10 @@ mod governance {
             bump
             )]
         pub vouter_data: Account<'info, VouterData>, // Tracks the voter's voting activity.
+        #[account(mut)]
+        pub signer: Signer<'info>, // The voter's signer account.
+        #[account(mut)]
+        pub vote_manager: Account<'info, VoteManager>, // Reference to the VoteManager account.
         #[account(
             mut,
             associated_token::token_program = token_program,
@@ -288,10 +292,6 @@ mod governance {
                                                                          * and which is used by
                                                                          * a program to deduct
                                                                          * voting fee. */
-        #[account(mut)]
-        pub signer: Signer<'info>, // The voter's signer account.
-        #[account(mut)]
-        pub vote_manager: Account<'info, VoteManager>, // Reference to the VoteManager account.
         #[account(mut)]
         pub project: Account<'info, ProjectData>, // The project being voted for.
         pub mint: InterfaceAccount<'info, Mint>, // The governance token mint (QZL).

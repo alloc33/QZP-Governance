@@ -5,8 +5,8 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-qzl_token = "4wYyKpdmL82mehsRdiTCTbCnGCBZjdgbz6vE8J46VQFn"
 governance = "9XcHeSSNVRDP4bkpXe3bgYVoQC1UGBS39JAB8w6L1CmU"
+qzl_token = "4avjKuLNY7Q2PswouSSDGm5rETTqf1t6MA4bMfUjcRjH"
 
 [registry]
 url = "https://api.apr.dev"
