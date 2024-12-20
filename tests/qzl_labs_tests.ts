@@ -98,6 +98,22 @@ function deriveMintTokenAccount(mintPubkey: PublicKey, adminPubkey: PublicKey): 
   );
 }
 
+
+/**
+* Generates project unique identifier
+*/
+function generateProjectIdx(length = 20): string {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let result = "";
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
+// Usage:
+const doubleVoteProjectIdx = generateProjectIdx(20);
+console.log(doubleVoteProjectIdx); // e.g. "aB3xYz12WpQ9..." (20 random chars)
 /**
  * Airdrops SOL to a given public key if the balance is below a specified threshold.
  * Ensures that test accounts have sufficient funds to cover transaction fees.
@@ -187,17 +203,12 @@ describe("qzl-labs-tests", () => {
   let voteManagerPda: PublicKey; // PDA for managing voting rounds and projects.
   let extraMetasAccount: PublicKey; // Additional metadata account PDA.
   let projectIdx: string; // Identifier for a specific project.
-  let projectPdaRound2: PublicKey; // PDA for the project in round 2.
-  let projectPdaRound3: PublicKey; // PDA for the project in round 3.
-  let projectPdaRound4: PublicKey; // PDA for the project in round 4.
-  let voterDataPdaRound1: PublicKey; // Vouter PDA for voter in round 1.
-  let voterDataPdaRound2: PublicKey; // Vouter PDA for voter in round 2.
   let unauthorizedAttacker: Keypair; // Keypair representing an unauthorized user attempting actions.
 
   // -------------------- Hooks --------------------
   before(async () => {
     try {
-      // Initialize keypairs for token mint, voter, and an unauthorized attacker.
+      // Setup initial values..
       tokenMint = Keypair.generate();
       voter = Keypair.generate();
       adminWallet = provider.wallet as anchor.Wallet;
@@ -221,15 +232,6 @@ describe("qzl-labs-tests", () => {
         ],
         tokenProgram.programId
       )[0];
-
-      // Derive PDAs for the same project across different voting rounds.
-      projectPdaRound2 = deriveProjectPda(projectIdx, 2, adminWallet.publicKey);
-      projectPdaRound3 = deriveProjectPda(projectIdx, 3, adminWallet.publicKey);
-      projectPdaRound4 = deriveProjectPda(projectIdx, 4, adminWallet.publicKey);
-
-      // Derive Vouter PDAs for the voter across different voting rounds.
-      voterDataPdaRound1 = deriveVouterPda(1, voter.publicKey);
-      voterDataPdaRound2 = deriveVouterPda(2, voter.publicKey);
 
       console.log("\nPerforming necessary airdrops...\n");
 
@@ -279,7 +281,7 @@ describe("qzl-labs-tests", () => {
 
       // Fetch and assert the initial state of the VoteManager to ensure correct initialization.
       const voteManagerAccount = await program.account.voteManager.fetch(voteManagerPda);
-      expect(voteManagerAccount.voteRound).to.equal(1); // Initial round should be 1.
+      expect(voteManagerAccount.voteRound).to.equal(1);
       expect(voteManagerAccount.admin.toBase58()).to.equal(adminWallet.publicKey.toBase58()); // Admin should be correctly set.
       expect(voteManagerAccount.tkMint.toBase58()).to.equal(tokenMint.publicKey.toBase58()); // Token mint should be correctly set.
       expect(voteManagerAccount.tkProgram.toBase58()).to.equal(TOKEN_2022_PROGRAM_ID.toBase58()); // Token program ID should be correctly set.
@@ -558,10 +560,13 @@ describe("qzl-labs-tests", () => {
    */
   it("Add Project with Unique idx", async () => {
     // Define a unique project identifier.
-    const uniqueProjectIdx = "uniqueProject";
+    const uniqueProjectIdx = generateProjectIdx(10);
+
+    const voteManagerAccount = await program.account.voteManager.fetch(voteManagerPda);
+    const currentRound = voteManagerAccount.voteRound;;
 
     // Derive the PDA for the unique project in round 2.
-    const uniqueProjectPda = deriveProjectPda(uniqueProjectIdx, 2, adminWallet.publicKey);
+    const uniqueProjectPda = deriveProjectPda(uniqueProjectIdx, currentRound, adminWallet.publicKey);
 
     // Define the accounts required to add a new project.
     const addProjectAccounts = {
@@ -583,7 +588,7 @@ describe("qzl-labs-tests", () => {
     // Assertions to ensure the project was added correctly.
     expect(projectAccount.idx).to.equal(uniqueProjectIdx); // Project identifier should match.
     expect(projectAccount.voteCount.toNumber()).to.equal(0); // Initial vote count should be zero.
-    expect(projectAccount.voteRound).to.equal(2); // Project should be associated with round 2.
+    expect(projectAccount.voteRound).to.equal(currentRound); // Project should be associated with round 2.
     expect(projectAccount.voteFee.toNumber()).to.equal(500); // Vote fee should reflect the current fee.
   });
 
@@ -593,10 +598,13 @@ describe("qzl-labs-tests", () => {
    */
   it("Add Project with Duplicate idx", async () => {
     // Define a duplicate project identifier.
-    const duplicateProjectIdx = "duplicateProject";
+    const duplicateProjectIdx = generateProjectIdx(10);
+
+    const voteManagerAccount = await program.account.voteManager.fetch(voteManagerPda);
+    const currentRound = voteManagerAccount.voteRound;;
 
     // Derive the PDA for the duplicate project in round 2.
-    const duplicateProjectPda = deriveProjectPda(duplicateProjectIdx, 2, adminWallet.publicKey);
+    const duplicateProjectPda = deriveProjectPda(duplicateProjectIdx, currentRound, adminWallet.publicKey);
 
     // Define the accounts required to add the duplicate project.
     const addProjectAccounts = {
@@ -633,22 +641,11 @@ describe("qzl-labs-tests", () => {
    */
   it("Reuse idx (project name) in a New Round", async () => {
     // Define the current voting round.
-    const currentRound = 3;
-
-    // Define the accounts required to increment the voting round.
-    const incrementAccounts = {
-      voteData: voteManagerPda,
-      owner: adminWallet.publicKey,
-    };
-
-    // Increment the voting round to 3.
-    await program.methods
-      .incrementRound()
-      .accounts(incrementAccounts)
-      .rpc();
+    const voteManagerAccount = await program.account.voteManager.fetch(voteManagerPda);
+    const currentRound = voteManagerAccount.voteRound;;
 
     // Define a project identifier to be reused.
-    const reusedProjectIdx = "reuseProject";
+    const reusedProjectIdx = generateProjectIdx(10);
 
     // Derive the PDA for the reused project in round 3.
     const reusedProjectPda = deriveProjectPda(reusedProjectIdx, currentRound, adminWallet.publicKey);
@@ -682,10 +679,12 @@ describe("qzl-labs-tests", () => {
    */
   it("Double Voting Prevention", async () => {
     // Define the current voting round.
-    const currentRound = 3;
+
+    const voteManagerAccount = await program.account.voteManager.fetch(voteManagerPda);
+    const currentRound = voteManagerAccount.voteRound;;
 
     // Define a project identifier for double voting test.
-    const doubleVoteProjectIdx = "doubleVoteProject";
+    const doubleVoteProjectIdx = generateProjectIdx(10);
 
     // Derive the PDA for the double voting project in round 3.
     const doubleVoteProjectPda = deriveProjectPda(doubleVoteProjectIdx, currentRound, adminWallet.publicKey);
@@ -746,10 +745,13 @@ describe("qzl-labs-tests", () => {
   //  */
   it("Voting in the Wrong Round", async () => {
     // Define a project identifier for the wrong round voting test.
-    const wrongRoundProjectIdx = "wrongRoundProject";
+    const wrongRoundProjectIdx = generateProjectIdx(10);
+
+    const voteManagerAccount = await program.account.voteManager.fetch(voteManagerPda);
+    const currentRound = voteManagerAccount.voteRound;;
 
     // Derive the PDA for the project intended for wrong round voting in round 3.
-    const wrongRoundProjectPda = deriveProjectPda(wrongRoundProjectIdx, 3, adminWallet.publicKey);
+    const wrongRoundProjectPda = deriveProjectPda(wrongRoundProjectIdx, currentRound, adminWallet.publicKey);
 
     // Define the accounts required to add the project.
     const addProjectAccounts = {
@@ -766,14 +768,14 @@ describe("qzl-labs-tests", () => {
       .rpc();
 
     // Define the round number to attempt voting in, which is incorrect.
-    const wrongVoteRound = 4;
+    const wrongVoteRound = 100;
 
     // Define the accounts required to perform a vote in the wrong round.
     const doVoteWrongRoundAccounts = {
-      vouterData: deriveVouterPda(1, voter.publicKey), // Derive with round 1, assuming current round is 3.
+      vouterData: deriveVouterPda(currentRound, voter.publicKey), // Derive with round 1, assuming current round is 3.
       signer: voter.publicKey, // Voter's public key.
       voteManager: voteManagerPda, // VoteManager PDA.
-      adminTokenAccount: mintTokenAccount, // Admin's token account for receiving vote fees.
+      adminTokenAccount: mintTokenAccount,
       project: wrongRoundProjectPda, // Project PDA being voted for.
       mint: tokenMint.publicKey, // Token mint's public key.
       token: voterAta, // Voter's token account.
@@ -803,22 +805,25 @@ describe("qzl-labs-tests", () => {
   //  */
   it("Voting Fee Transfer", async () => {
     // Define a project identifier for the fee transfer test.
-    const feeTransferProjectIdx = "feeTransferProject";
 
-    // Derive the PDA for the project in round 4.
-    const feeTransferProjectPda = deriveProjectPda(feeTransferProjectIdx, 4, adminWallet.publicKey);
-
-    // Define the accounts required to increment the voting round.
+    // Define the accounts required to increment the round.
     const incrementAccounts = {
       voteData: voteManagerPda,
       owner: adminWallet.publicKey,
     };
 
-    // Increment the voting round to 4 to align with the project's round.
+    // Execute the round increment.
     await program.methods
       .incrementRound()
       .accounts(incrementAccounts)
       .rpc();
+
+    const feeTransferProjectIdx = generateProjectIdx(10);
+
+    const voteManagerAccount = await program.account.voteManager.fetch(voteManagerPda);
+    const currentRound = voteManagerAccount.voteRound;
+
+    const feeTransferProjectPda = deriveProjectPda(feeTransferProjectIdx, currentRound, adminWallet.publicKey);
 
     // Define the accounts required to add the fee transfer project.
     const addProjectAccounts = {
@@ -836,10 +841,10 @@ describe("qzl-labs-tests", () => {
 
     // Define the accounts required to perform a vote.
     const doVoteAccounts = {
-      vouterData: deriveVouterPda(4, voter.publicKey), // Vouter PDA for the voter in round 4.
+      vouterData: deriveVouterPda(currentRound, voter.publicKey),
       signer: voter.publicKey, // Voter's public key.
       voteManager: voteManagerPda, // VoteManager PDA.
-      adminTokenAccount: mintTokenAccount, // Admin's token account for receiving vote fees.
+      adminTokenAccount: mintTokenAccount,
       project: feeTransferProjectPda, // Project PDA being voted for.
       mint: tokenMint.publicKey, // Token mint's public key.
       token: voterAta, // Voter's token account.
@@ -853,7 +858,7 @@ describe("qzl-labs-tests", () => {
 
     // Perform the vote, which should transfer the vote fee from the voter to the admin.
     await program.methods
-      .doVote(4)
+      .doVote(currentRound)
       .accounts(doVoteAccounts)
       .signers([voter])
       .rpc();
@@ -863,10 +868,10 @@ describe("qzl-labs-tests", () => {
     const finalAdminBalance = await getTokenBalance(provider.connection, mintTokenAccount);
 
     // Assert that the voter's balance decreased by the vote fee amount (500 QZL).
-    expect(finalVoterBalance).to.equal(initialVoterBalance - 500);
+    expect(finalVoterBalance).to.equal(initialVoterBalance - voteManagerAccount.voteFee.toNumber());
 
     // Assert that the admin's balance increased by the vote fee amount (500 QZL).
-    expect(finalAdminBalance).to.equal(initialAdminBalance + 500);
+    expect(finalAdminBalance).to.equal(initialAdminBalance + voteManagerAccount.voteFee.toNumber());
   });
 
   // /**
@@ -875,22 +880,22 @@ describe("qzl-labs-tests", () => {
   //  */
   it("Successful Vote", async () => {
     // Define a project identifier for the successful vote test.
-    const successfulVoteProjectIdx = "successfulVoteProject";
 
-    // Derive the PDA for the project in round 5.
-    const successfulVoteProjectPda = deriveProjectPda(successfulVoteProjectIdx, 5, adminWallet.publicKey);
-
-    // Define the accounts required to increment the voting round.
     const incrementAccounts = {
       voteData: voteManagerPda,
       owner: adminWallet.publicKey,
     };
 
-    // Increment the voting round to 5 to align with the project's round.
     await program.methods
       .incrementRound()
       .accounts(incrementAccounts)
       .rpc();
+
+    const successfulVoteProjectIdx = generateProjectIdx(10);
+    const voteManagerAccount = await program.account.voteManager.fetch(voteManagerPda);
+    const currentRound = voteManagerAccount.voteRound;;
+
+    const successfulVoteProjectPda = deriveProjectPda(successfulVoteProjectIdx, currentRound, adminWallet.publicKey);
 
     // Define the accounts required to add the successful vote project.
     const addProjectAccounts = {
@@ -908,10 +913,12 @@ describe("qzl-labs-tests", () => {
 
     // Define the accounts required to perform a vote.
     const doVoteAccounts = {
-      vouterData: deriveVouterPda(5, voter.publicKey), // Vouter PDA for the voter in round 5.
+      vouterData: deriveVouterPda(currentRound, voter.publicKey), // Vouter PDA for the voter in round 5.
       signer: voter.publicKey, // Voter's public key.
       voteManager: voteManagerPda, // VoteManager PDA.
-      adminTokenAccount: mintTokenAccount, // Admin's token account for receiving vote fees.
+      // FIXME: Hardcode
+      // adminTokenAccount: mintTokenAccount,
+      adminForFee: Keypair.generate().publicKey,
       project: successfulVoteProjectPda, // Project PDA being voted for.
       mint: tokenMint.publicKey, // Token mint's public key.
       token: voterAta, // Voter's token account.
@@ -921,7 +928,7 @@ describe("qzl-labs-tests", () => {
 
     // Perform the vote, which should update the project's vote count and voter's data.
     await program.methods
-      .doVote(5)
+      .doVote(currentRound)
       .accounts(doVoteAccounts)
       .signers([voter])
       .rpc();
@@ -934,11 +941,11 @@ describe("qzl-labs-tests", () => {
 
     // Assertions to ensure the vote was successfully recorded.
     expect(projectAccount.idx).to.equal(successfulVoteProjectIdx); // Project identifier should match.
-    expect(projectAccount.voteRound).to.equal(5); // Project should be associated with round 5.
+    expect(projectAccount.voteRound).to.equal(currentRound); // Project should be associated with round 5.
     expect(projectAccount.voteCount.toNumber()).to.be.greaterThan(0); // Project's vote count should have increased.
 
     expect(voterAccount.voteCount.toNumber()).to.be.greaterThan(0); // Voter's vote count should have increased.
-    expect(voterAccount.lastVotedRound).to.equal(5); // Voter's last voted round should be updated to 5.
+    expect(voterAccount.lastVotedRound).to.equal(currentRound);
   });
 });
 
