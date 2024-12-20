@@ -879,8 +879,6 @@ describe("qzl-labs-tests", () => {
   //  * Purpose: Verify that a valid vote correctly updates the project's vote count and the voter's voting data.
   //  */
   it("Successful Vote", async () => {
-    // Define a project identifier for the successful vote test.
-
     const incrementAccounts = {
       voteData: voteManagerPda,
       owner: adminWallet.publicKey,
@@ -916,9 +914,7 @@ describe("qzl-labs-tests", () => {
       vouterData: deriveVouterPda(currentRound, voter.publicKey), // Vouter PDA for the voter in round 5.
       signer: voter.publicKey, // Voter's public key.
       voteManager: voteManagerPda, // VoteManager PDA.
-      // FIXME: Hardcode
-      // adminTokenAccount: mintTokenAccount,
-      adminForFee: Keypair.generate().publicKey,
+      adminTokenAccount: mintTokenAccount,
       project: successfulVoteProjectPda, // Project PDA being voted for.
       mint: tokenMint.publicKey, // Token mint's public key.
       token: voterAta, // Voter's token account.
