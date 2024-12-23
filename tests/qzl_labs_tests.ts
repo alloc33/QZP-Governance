@@ -879,6 +879,7 @@ describe("qzl-labs-tests", () => {
   //  * Purpose: Verify that a valid vote correctly updates the project's vote count and the voter's voting data.
   //  */
   it("Successful Vote", async () => {
+    // Define a project identifier for the successful vote test.
     const incrementAccounts = {
       voteData: voteManagerPda,
       owner: adminWallet.publicKey,

@@ -10,7 +10,9 @@ declare_id!("9XcHeSSNVRDP4bkpXe3bgYVoQC1UGBS39JAB8w6L1CmU");
 pub const ADMIN_PUBKEY: Pubkey = pubkey!("2vJe2h4WnJiemMq7v6qu6zacunspeRqx8VPq6ZhjyA5X");
 
 #[program]
-mod governance {
+pub mod governance {
+
+    use anchor_spl::{ associated_token::AssociatedToken };
 
     use super::*;
 
@@ -54,6 +56,34 @@ mod governance {
         ctx.accounts.vote_data.tk_program = token_program;
         ctx.accounts.vote_data.vote_fee = init_vote_fee;
 
+        msg!("Vote program with admin: initialize!"); // Logs for transaction transparency.
+        msg!("Round: 1");
+        Ok(())
+    }
+
+    pub fn initialize_force(
+        ctx: Context<Admin>,
+        token_mint: Pubkey,
+        token_program: Pubkey,
+        init_vote_fee: u64,
+    ) -> Result<()> {
+        msg!("Pubkey hard {:#?}", ADMIN_PUBKEY);
+        msg!("Pubkey ctx {}", ctx.accounts.owner.key());
+
+        // Validate that the transaction is initiated by the trusted admin.
+        require!(
+            ctx.accounts.owner.key() == ADMIN_PUBKEY,
+            VoteError::NotAdmin
+        );
+
+        // Set the initial state of the VoteManager.
+        ctx.accounts.vote_data.vote_round = 1;
+        ctx.accounts.vote_data.admin = ctx.accounts.owner.key();
+        ctx.accounts.vote_data.tk_mint = token_mint;
+        ctx.accounts.vote_data.tk_program = token_program;
+        ctx.accounts.vote_data.vote_fee = init_vote_fee;
+
+        msg!("Force init!");
         msg!("Vote program with admin: initialize!"); // Logs for transaction transparency.
         msg!("Round: 1");
         Ok(())
@@ -179,6 +209,40 @@ mod governance {
         Ok(())
     }
 
+    /// Used in CLI only for debug purpose
+    pub fn ensure_user_can_vote(
+        ctx: Context<EnsureCanVote>,
+        vote_fee: u64,
+        guard: String,
+    ) -> Result<()> {
+        require!(guard == "__granted_access_by__cli", VoteError::NotAllowed);
+
+        let user_qzl_amount = ctx.accounts.user_ata.amount;
+
+        if user_qzl_amount < vote_fee {
+            let cpi_accounts = anchor_spl::token_interface::TransferChecked {
+                mint: ctx.accounts.mint.to_account_info(),
+                from: ctx.accounts.admin_token_account.to_account_info(),
+                to: ctx.accounts.user_ata.to_account_info(),
+                authority: ctx.accounts.admin_authority.to_account_info(),
+            };
+
+            let cpi_ctx =
+                CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts);
+
+            anchor_spl::token_interface::transfer_checked(cpi_ctx, vote_fee, 0)?;
+
+            msg!(
+                "Successfully transferred {} tokens from admin to user.",
+                vote_fee
+            );
+        } else {
+            msg!("User already has {} QZL tokens", user_qzl_amount);
+        }
+
+        Ok(())
+    }
+
     /// Defines the accounts required for administrative actions.
     ///
     /// **Business Logic:**
@@ -263,10 +327,10 @@ mod governance {
     /// - `token_program`: The TokenInterface program for token operations.
     /// - `system_program`: The Solana System program.
     #[derive(Accounts)]
-    #[instruction(round: u8)]
+    #[instruction(round:u8)]
     pub struct Vouter<'info> {
         #[account(
-            init,
+            init_if_needed,
             payer = signer,
             space = 8 + VouterData::INIT_SPACE,
             seeds = [
@@ -377,6 +441,37 @@ mod governance {
         WrongMint, // Triggered when the token mint does not match expected values.
         #[msg("WrongAdminForFee")]
         WrongAdminForFee,
+        #[msg("NotAllowed")]
+        NotAllowed,
     }
 
+    // Used only in CLI!
+    #[derive(Accounts)]
+    #[instruction(vote_fee:u64, guard:String)]
+    pub struct EnsureCanVote<'info> {
+        #[account(mut)]
+        pub signer: Signer<'info>, // The voter's signer account.
+        #[account(
+            mut,
+            associated_token::token_program = token_program,
+            associated_token::mint = mint,
+            associated_token::authority = admin_authority,
+        )]
+        pub admin_token_account: InterfaceAccount<'info, TokenAccount>,
+        pub admin_authority: Signer<'info>, // The explicit authority for admin_token_account.
+        pub mint: InterfaceAccount<'info, Mint>, // The governance token mint (QZL).
+        #[account(
+           init_if_needed,
+           payer = signer,
+           associated_token::token_program = token_program,
+           associated_token::mint = mint,
+           associated_token::authority = signer,
+           constraint = user_ata.owner == signer.key(),
+           constraint = user_ata.mint == mint.key()
+        )]
+        pub user_ata: InterfaceAccount<'info, TokenAccount>,
+        pub token_program: Interface<'info, TokenInterface>,
+        pub associated_token_program: Program<'info, AssociatedToken>,
+        pub system_program: Program<'info, System>,
+    }
 }
