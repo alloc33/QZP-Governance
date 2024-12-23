@@ -6,14 +6,13 @@ Devnet:
 
 $ just add-project <project_key> <round> # Add a project to a voting round
 $ just change-fee <new_fee>              # Change the voting fee
-$ just do-vote <project_name> <round>    # Cast a vote for a project in a specific round
+$ just do-vote <project_key> <round>     # Cast a vote for a project in a specific round
 $ just get-round                         # Get the current voting round
 $ just help                              # Utility to print available commands
 $ just increment-round                   # Increment the current voting round
 $ just init-force                        # Initialize the VoteManager forcefully
-
-Be sure you have admin's dev wallet (pubkey: 2vJe2h4WnJiemMq7v6qu6zacunspeRqx8VPq6ZhjyA5X)
 ```
+Be sure you have admin's dev wallet (pubkey: 2vJe2h4WnJiemMq7v6qu6zacunspeRqx8VPq6ZhjyA5X)
 
 This project consists of two Solana programs:
 
