@@ -1,109 +1,43 @@
 # QZL Token Project
 
-This project is designed to empower community-driven decision-making on the Solana blockchain. It leverages the **QZL token** to facilitate transparent voting, allowing users to express their preferences on proposed projects without risking or burning their tokens. 
-https://quantzillalabs.co
+Available commands to test:
+```shell
+Devnet:
 
-## Table of Contents
+$ just add-project <project_key> <round> # Add a project to a voting round
+$ just change-fee <new_fee>              # Change the voting fee
+$ just do-vote <project_name> <round>    # Cast a vote for a project in a specific round
+$ just get-round                         # Get the current voting round
+$ just help                              # Utility to print available commands
+$ just increment-round                   # Increment the current voting round
+$ just init-force                        # Initialize the VoteManager forcefully
 
-- [Business Logic](#business-logic)
-  - [Governance Module](#governance-module)
-  - [QZL Token Module](#qzl-token-module)
-- [Testing](#testing)
-  - [Test Cases](#test-cases)
+Be sure you have admin's dev wallet (pubkey: 2vJe2h4WnJiemMq7v6qu6zacunspeRqx8VPq6ZhjyA5X)
+```
 
----
+This project consists of two Solana programs:
 
-## Business Logic
+## Governance Program
+- Manages voting logic and processes.
+- Key responsibilities:
+  - Voting round initialization and increments.
+  - Project registration for voting.
+  - QZL token-based voting system.
 
-### Governance Module
+## QZL Token Program
+- Implements the **QZL token** using Solana's Token-2022 standard.
+- Key responsibilities:
+  - Creates the QZL token mint with an initial supply of **450 million tokens**.
+  - Automatically mints the entire supply to the admin's associated token account during token creation.
 
-The Governance module manages decentralized voting. It empowers administrators to oversee voting activities and ensures a transparent governance process.
+## Key Features
+- **Governance**:
+  - Admin-controlled voting manager.
+  - Projects and voting tied to specific rounds.
+  - Transparent, token-based voting system.
+  
+- **Token**:
+  - Token-2022 compatibility with enhanced extensions.
+  - Automatic metadata and authority management.
+  - Fixed total supply, ensuring no further minting.
 
-#### Features:
-
-1. **Admin Initialization**:
-   - The governance system is initialized by an administrator with token mint, program, and fee configurations.
-
-2. **Voting Round Management**:
-   - Admins can increment voting rounds, enabling new voting phases while closing the previous ones.
-
-3. **Fee Management**:
-   - Admins set and modify voting fees to control voter participation and fund projects.
-
-4. **Project Management**:
-   - Admins add projects for voting, uniquely identified per round with associated fees.
-
-5. **Voting Mechanism**:
-   - Voters use QZL tokens to cast votes for projects during active rounds.
-   - A voting fee is deducted from the voter and credited to the admin.
-
-#### Workflow:
-
-1. **Initialization**:
-   - Admin initializes the system with the governance token mint, token program, and voting fee.
-
-2. **Project Addition**:
-   - Admins add projects tied to specific voting rounds.
-
-3. **Voting**:
-   - Voters cast votes, transferring the voting fee to the admin.
-
-4. **Round Progression**:
-   - Admins increment voting rounds, enabling new voting phases.
-
----
-
-### QZL Token Module
-
-The QZL Token module manages token minting, transfer, and governance. It integrates SPL Token-2022 extensions for advanced features.
-
-#### Features:
-
-1. **Token Minting**:
-   - Mint accounts are created with metadata, fixed supply, and governance extensions.
-
-2. **Token Transfers**:
-   - Securely transfers QZL tokens between accounts.
-
-3. **Extensions Handling**:
-   - Includes metadata pointers, group memberships, and close authorities.
-
-4. **Initial Supply Management**:
-   - Initial tokens are minted to a supply manager account for controlled distribution.
-
-#### Workflow:
-
-1. **Mint Initialization**:
-   - Admins create mint accounts with metadata and an initial token supply.
-
-2. **Authority Management**:
-   - Mint authority is revoked after initial minting to ensure a fixed supply.
-
-3. **Token Transfers**:
-   - QZL tokens are transferred securely from the supply manager to users or voters.
-
----
-
-## Testing
-- [x] Admin Initialization with Correct Admin Key
-- [x] Admin Initialization with Incorrect Admin Key
-- [x] Duplicate Initialization
-
-Test Cases for increment_round Function:
-- [x] Increment Round by Admin
-- [x] Increment Round by Non-Admin
-
-Test Cases for change_fee Function:
-- [x] Admin Changes Fee
-- [x] Non-Admin Tries to Change Fee
-
-Test Cases for add_project Function:
-- [x] Add Project with Unique idx
-- [x] Add Project with Duplicate idx
-- [x] Reuse idx in a New Round
-
-Test Cases for do_vote Function
-- [x] Double Voting Prevention
-- [x] Voting in the Wrong Round
-- [x] Voting Fee Transfer
-- [x] Successful Vote

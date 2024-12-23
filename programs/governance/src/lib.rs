@@ -1,5 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
+use anchor_spl::associated_token::AssociatedToken;
+
 
 // Declare the unique program ID that associates this Rust program with its deployed counterpart on
 // Solana.
@@ -11,8 +13,6 @@ pub const ADMIN_PUBKEY: Pubkey = pubkey!("2vJe2h4WnJiemMq7v6qu6zacunspeRqx8VPq6Z
 
 #[program]
 pub mod governance {
-
-    use anchor_spl::{ associated_token::AssociatedToken };
 
     use super::*;
 
@@ -44,10 +44,10 @@ pub mod governance {
         );
 
         // Ensure that the VoteManager has not been initialized before.
-        require!(
-            ctx.accounts.vote_data.admin == Pubkey::default(),
-            VoteError::DoubleInitAttempt
-        );
+        // require!(
+        //     ctx.accounts.vote_data.admin == Pubkey::default(),
+        //     VoteError::DoubleInitAttempt
+        // );
 
         // Set the initial state of the VoteManager.
         ctx.accounts.vote_data.vote_round = 1;

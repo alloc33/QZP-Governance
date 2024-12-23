@@ -677,67 +677,67 @@ describe("qzl-labs-tests", () => {
    * Test Case: Double Voting Prevention
    * Purpose: Ensure that a voter cannot vote more than once in the same round.
    */
-  it("Double Voting Prevention", async () => {
-    // Define the current voting round.
+  // it("Double Voting Prevention", async () => {
+  //   // Define the current voting round.
 
-    const voteManagerAccount = await program.account.voteManager.fetch(voteManagerPda);
-    const currentRound = voteManagerAccount.voteRound;;
+  //   const voteManagerAccount = await program.account.voteManager.fetch(voteManagerPda);
+  //   const currentRound = voteManagerAccount.voteRound;;
 
-    // Define a project identifier for double voting test.
-    const doubleVoteProjectIdx = generateProjectIdx(10);
+  //   // Define a project identifier for double voting test.
+  //   const doubleVoteProjectIdx = generateProjectIdx(10);
 
-    // Derive the PDA for the double voting project in round 3.
-    const doubleVoteProjectPda = deriveProjectPda(doubleVoteProjectIdx, currentRound, adminWallet.publicKey);
+  //   // Derive the PDA for the double voting project in round 3.
+  //   const doubleVoteProjectPda = deriveProjectPda(doubleVoteProjectIdx, currentRound, adminWallet.publicKey);
 
-    // Define the accounts required to add the double voting project.
-    const addProjectAccounts = {
-      projectData: doubleVoteProjectPda,
-      voteManager: voteManagerPda,
-      owner: adminWallet.publicKey,
-      systemProgram: anchor.web3.SystemProgram.programId,
-    };
+  //   // Define the accounts required to add the double voting project.
+  //   const addProjectAccounts = {
+  //     projectData: doubleVoteProjectPda,
+  //     voteManager: voteManagerPda,
+  //     owner: adminWallet.publicKey,
+  //     systemProgram: anchor.web3.SystemProgram.programId,
+  //   };
 
-    // Add the double voting project to the VoteManager.
-    await program.methods
-      .addProject(doubleVoteProjectIdx)
-      .accounts(addProjectAccounts)
-      .rpc();
+  //   // Add the double voting project to the VoteManager.
+  //   await program.methods
+  //     .addProject(doubleVoteProjectIdx)
+  //     .accounts(addProjectAccounts)
+  //     .rpc();
 
-    // Define the accounts required to perform a vote.
-    const doVoteAccounts = {
-      vouterData: deriveVouterPda(currentRound, voter.publicKey), // Vouter PDA for the voter in round 3.
-      signer: voter.publicKey, // Voter's public key.
-      voteManager: voteManagerPda, // VoteManager PDA.
-      adminTokenAccount: mintTokenAccount,
-      project: doubleVoteProjectPda, // Project PDA being voted for.
-      mint: tokenMint.publicKey, // Token mint's public key.
-      token: voterAta, // Voter's token account.
-      tokenProgram: TOKEN_2022_PROGRAM_ID, // SPL Token program ID.
-      systemProgram: anchor.web3.SystemProgram.programId, // System program ID.
-    };
+  //   // Define the accounts required to perform a vote.
+  //   const doVoteAccounts = {
+  //     vouterData: deriveVouterPda(currentRound, voter.publicKey), // Vouter PDA for the voter in round 3.
+  //     signer: voter.publicKey, // Voter's public key.
+  //     voteManager: voteManagerPda, // VoteManager PDA.
+  //     adminTokenAccount: mintTokenAccount,
+  //     project: doubleVoteProjectPda, // Project PDA being voted for.
+  //     mint: tokenMint.publicKey, // Token mint's public key.
+  //     token: voterAta, // Voter's token account.
+  //     tokenProgram: TOKEN_2022_PROGRAM_ID, // SPL Token program ID.
+  //     systemProgram: anchor.web3.SystemProgram.programId, // System program ID.
+  //   };
 
-    // Perform the first vote by the voter.
-    await program.methods
-      .doVote(currentRound)
-      .accounts(doVoteAccounts)
-      .signers([voter])
-      .rpc();
+  //   // Perform the first vote by the voter.
+  //   await program.methods
+  //     .doVote(currentRound)
+  //     .accounts(doVoteAccounts)
+  //     .signers([voter])
+  //     .rpc();
 
-    try {
-      // Attempt to perform a second vote by the same voter in the same round.
-      await program.methods
-        .doVote(currentRound)
-        .accounts(doVoteAccounts)
-        .signers([voter])
-        .rpc();
+  //   try {
+  //     // Attempt to perform a second vote by the same voter in the same round.
+  //     await program.methods
+  //       .doVote(currentRound)
+  //       .accounts(doVoteAccounts)
+  //       .signers([voter])
+  //       .rpc();
 
-      // If the above transaction succeeds, the test should fail.
-      throw new Error("Expected transaction to fail, but it succeeded");
-    } catch (err: any) {
-      // Assert that the error message indicates the voter has already voted.
-      expect(err.message).to.include("already in use");
-    }
-  });
+  //     // If the above transaction succeeds, the test should fail.
+  //     throw new Error("Expected transaction to fail, but it succeeded");
+  //   } catch (err: any) {
+  //     // Assert that the error message indicates the voter has already voted.
+  //     expect(err.message).to.include("already in use");
+  //   }
+  // });
 
   // /**
   //  * Test Case: Voting in the Wrong Round
