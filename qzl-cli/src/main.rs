@@ -95,7 +95,7 @@ async fn init_force() -> Result<(), Box<dyn Error>> {
             owner: program.payer(),
             system_program: system_program::ID,
         })
-        .args(governance::instruction::InitializeForce {
+        .args(governance::instruction::Initialize {
             token_mint: TOKEN_MINT.parse()?,
             token_program: TOKEN_PROGRAM.parse()?,
             init_vote_fee: 100,
@@ -160,7 +160,8 @@ async fn get_round() -> Result<(), Box<dyn Error>> {
 
     let (vote_data_pda, _) = derive_vote_manager_pda(&program.payer(), &program.id());
 
-    let vote_manager: governance::governance::VoteManager = program.account(vote_data_pda).await?;
+    let vote_manager: governance::instructions::VoteManager =
+        program.account(vote_data_pda).await?;
     let current_round = vote_manager.vote_round;
 
     println!("Current round: {current_round}");
@@ -238,10 +239,7 @@ async fn add_project(project_key: &str, round: u8) -> Result<(), Box<dyn Error>>
     Ok(())
 }
 
-async fn do_vote(
-    project_key: &str,
-    round: u8,
-) -> Result<(), Box<dyn Error>> {
+async fn do_vote(project_key: &str, round: u8) -> Result<(), Box<dyn Error>> {
     let keypair = get_keypair(ADMIN_SECRET)?;
     let mint = "GgQuhpBUxy7LaD56c2vbxk5hSgoBuNwxxev6U9iqyMXZ".parse::<Pubkey>()?;
     let vouter_keypair = get_keypair(VOUTER_SECRET)?;
@@ -274,7 +272,8 @@ async fn do_vote(
         &TOKEN_PROGRAM.parse::<Pubkey>()?,
     );
 
-    let vote_manager: governance::governance::VoteManager = program.account(vote_manager_pda).await?;
+    let vote_manager: governance::instructions::VoteManager =
+        program.account(vote_manager_pda).await?;
     let vote_fee = vote_manager.vote_fee;
 
     println!("Payer Pubkey: {}", payer.pubkey());
@@ -297,7 +296,7 @@ async fn do_vote(
         .args(governance::instruction::EnsureUserCanVote {
             vote_fee,
             guard: "__granted_access_by__cli".to_owned(),
-        }) 
+        })
         .signer(&*vouter)
         .send()
         .await;
@@ -351,23 +350,13 @@ fn derive_project_pda(
     program_id: &Pubkey,
 ) -> (Pubkey, u8) {
     Pubkey::find_program_address(
-        &[
-            project_key.as_bytes(),
-            &[round],
-            &admin_pubkey.to_bytes(),
-        ],
+        &[project_key.as_bytes(), &[round], &admin_pubkey.to_bytes()],
         program_id,
     )
 }
 
 fn derive_vote_manager_pda(admin_pubkey: &Pubkey, program_id: &Pubkey) -> (Pubkey, u8) {
-    Pubkey::find_program_address(
-        &[
-            b"vote_manager",
-            &admin_pubkey.to_bytes(),
-        ],
-        program_id,
-    )
+    Pubkey::find_program_address(&[b"vote_manager", &admin_pubkey.to_bytes()], program_id)
 }
 
 fn get_keypair(str: &str) -> Result<Keypair, Box<dyn Error>> {
