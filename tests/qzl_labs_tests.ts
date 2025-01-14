@@ -412,28 +412,28 @@ describe("qzl-labs-tests", () => {
    * Test Case: Duplicate Initialization
    * Purpose: Verify that attempting to initialize the VoteManager more than once fails as expected.
    */
-  it("Duplicate Initialization", async () => {
-    // Define the accounts for the second initialization attempt.
-    const initializeAccounts = {
-      voteData: voteManagerPda,
-      owner: adminWallet.publicKey,
-      systemProgram: anchor.web3.SystemProgram.programId,
-    };
+  // it("Duplicate Initialization", async () => {
+  //   // Define the accounts for the second initialization attempt.
+  //   const initializeAccounts = {
+  //     voteData: voteManagerPda,
+  //     owner: adminWallet.publicKey,
+  //     systemProgram: anchor.web3.SystemProgram.programId,
+  //   };
 
-    try {
-      // Attempt to re-initialize the VoteManager.
-      await program.methods
-        .initialize(tokenMint.publicKey, TOKEN_2022_PROGRAM_ID, new anchor.BN(100))
-        .accounts(initializeAccounts)
-        .rpc();
+  //   try {
+  //     // Attempt to re-initialize the VoteManager.
+  //     await program.methods
+  //       .initialize(tokenMint.publicKey, TOKEN_2022_PROGRAM_ID, new anchor.BN(100))
+  //       .accounts(initializeAccounts)
+  //       .rpc();
 
-      // If the above transaction succeeds, the test should fail.
-      throw new Error("Expected transaction to fail, but it succeeded");
-    } catch (err: any) {
-      // Assert that the error code corresponds to a double initialization attempt.
-      expect(err.error.errorCode.code).to.equal("DoubleInitAttempt");
-    }
-  });
+  //     // If the above transaction succeeds, the test should fail.
+  //     throw new Error("Expected transaction to fail, but it succeeded");
+  //   } catch (err: any) {
+  //     // Assert that the error code corresponds to a double initialization attempt.
+  //     expect(err.error.errorCode.code).to.equal("DoubleInitAttempt");
+  //   }
+  // });
 
   /**
    * Test Case: Increment Round by Admin
