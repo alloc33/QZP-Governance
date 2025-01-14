@@ -43,12 +43,6 @@ pub mod governance {
             VoteError::NotAdmin
         );
 
-        // Ensure that the VoteManager has not been initialized before.
-        // require!(
-        //     ctx.accounts.vote_data.admin == Pubkey::default(),
-        //     VoteError::DoubleInitAttempt
-        // );
-
         // Set the initial state of the VoteManager.
         ctx.accounts.vote_data.vote_round = 1;
         ctx.accounts.vote_data.admin = ctx.accounts.owner.key();
@@ -433,9 +427,6 @@ pub mod governance {
         #[msg("Wrong vote round.")]
         WrongRound, // Triggered when a vote is cast in an incorrect round.
         #[msg("Admin account already initialized.")]
-        DoubleInitAttempt, /* Triggered when attempting to initialize the VoteManager more than
-                            * once. */
-        #[msg("Not enough QZL tokens")]
         InsufficientTokens, // Triggered when a voter lacks sufficient tokens to cast a vote.
         #[msg("WrongMint")]
         WrongMint, // Triggered when the token mint does not match expected values.
