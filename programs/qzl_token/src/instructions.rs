@@ -92,11 +92,6 @@ impl<'info> CreateMintAccount<'info> {
     /// - Associates the metadata with the token mint and authority.
     /// - Ensures that the metadata is correctly linked to the mint account.
     ///
-    /// **Parameters:**
-    /// - `name`: Name of the token.
-    /// - `symbol`: Symbol representing the token.
-    /// - `uri`: URI pointing to the token's metadata.
-    ///
     /// **Returns:**
     /// - `ProgramResult`: Indicates success or failure of the metadata initialization.
     fn initialize_token_metadata(
@@ -128,21 +123,15 @@ impl<'info> CreateMintAccount<'info> {
 /// - Revokes mint authority to prevent further minting, ensuring a fixed total supply.
 /// - Ensures the mint account is rent-exempt by updating lamports if necessary.
 ///
-/// **Parameters:**
-/// - `ctx`: Context containing the accounts required for mint account creation.
-/// - `args`: Arguments containing token metadata and initial supply information.
-///
 /// **Returns:**
 /// - `Result<()>`: Indicates success or failure of the mint account creation process.
 pub fn handler(ctx: Context<CreateMintAccount>, args: CreateMintAccountArgs) -> Result<()> {
     // Initialize token metadata by invoking the metadata initialization CPI.
-    msg!("Initializing token metadata...");
     ctx.accounts.initialize_token_metadata(
         args.name.clone(),
         args.symbol.clone(),
         args.uri.clone(),
     )?;
-    msg!("Token metadata initialized.");
 
     // Reload the mint account to ensure it's updated with the latest data.
     ctx.accounts.mint.reload()?;
@@ -154,7 +143,6 @@ pub fn handler(ctx: Context<CreateMintAccount>, args: CreateMintAccountArgs) -> 
     assert_eq!(metadata.name, args.name);
     assert_eq!(metadata.symbol, args.symbol);
     assert_eq!(metadata.uri, args.uri);
-    msg!("Token metadata verified.");
 
     // Verify the MetadataPointer extension to ensure correct metadata association.
     let metadata_pointer = get_mint_extension_data::<MetadataPointer>(mint_data)?;
@@ -168,7 +156,6 @@ pub fn handler(ctx: Context<CreateMintAccount>, args: CreateMintAccountArgs) -> 
         metadata_pointer.authority,
         OptionalNonZeroPubkey::try_from(authority_key)?
     );
-    msg!("MetadataPointer extension verified.");
 
     // Verify the PermanentDelegate extension to ensure the delegate is correctly set.
     let permanent_delegate = get_mint_extension_data::<PermanentDelegate>(mint_data)?;
@@ -176,7 +163,6 @@ pub fn handler(ctx: Context<CreateMintAccount>, args: CreateMintAccountArgs) -> 
         permanent_delegate.delegate,
         OptionalNonZeroPubkey::try_from(authority_key)?
     );
-    msg!("PermanentDelegate extension verified.");
 
     // Verify the MintCloseAuthority extension to ensure the close authority is correctly set.
     let close_authority = get_mint_extension_data::<MintCloseAuthority>(mint_data)?;
@@ -184,7 +170,6 @@ pub fn handler(ctx: Context<CreateMintAccount>, args: CreateMintAccountArgs) -> 
         close_authority.close_authority,
         OptionalNonZeroPubkey::try_from(authority_key)?
     );
-    msg!("MintCloseAuthority extension verified.");
 
     // Verify the GroupMemberPointer extension to ensure proper group membership.
     let group_member_pointer = get_mint_extension_data::<GroupMemberPointer>(mint_data)?;
@@ -196,10 +181,8 @@ pub fn handler(ctx: Context<CreateMintAccount>, args: CreateMintAccountArgs) -> 
         group_member_pointer.member_address,
         OptionalNonZeroPubkey::try_from(mint_key)?
     );
-    msg!("GroupMemberPointer extension verified.");
 
     // **Mint the Initial Supply to Receiver's ATA using Token-2022 CPI**
-    msg!("Minting initial supply to receiver's ATA...");
     let cpi_accounts_mint_to = anchor_spl::token_2022::MintTo {
         mint: ctx.accounts.mint.to_account_info(),
         to: ctx.accounts.mint_token_account.to_account_info(),
@@ -213,10 +196,8 @@ pub fn handler(ctx: Context<CreateMintAccount>, args: CreateMintAccountArgs) -> 
 
     // Execute the minting of tokens to the associated token account.
     anchor_spl::token_2022::mint_to(cpi_ctx_mint_to, args.initial_supply)?;
-    msg!("Initial supply minted.");
 
     // **Revoke Mint Authority to Fix the Total Supply**
-    msg!("Revoking mint authority...");
     let cpi_accounts_set_authority = anchor_spl::token_2022::SetAuthority {
         account_or_mint: ctx.accounts.mint.to_account_info(),
         current_authority: ctx.accounts.authority.to_account_info(),
@@ -233,16 +214,13 @@ pub fn handler(ctx: Context<CreateMintAccount>, args: CreateMintAccountArgs) -> 
         anchor_spl::token_2022::spl_token_2022::instruction::AuthorityType::MintTokens,
         None,
     )?;
-    msg!("Mint authority revoked.");
 
     // **Update Lamports to Minimum Balance**
-    msg!("Updating lamports to minimum balance...");
     update_account_lamports_to_minimum_balance(
         ctx.accounts.mint.to_account_info(),
         ctx.accounts.payer.to_account_info(),
         ctx.accounts.system_program.to_account_info(),
     )?;
-    msg!("Lamports updated to minimum balance.");
 
     Ok(())
 }

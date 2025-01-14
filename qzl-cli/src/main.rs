@@ -17,7 +17,7 @@ use anchor_client::{
 const ADMIN_SECRET: &str = "~/.config/solana/id.json";
 const GOVERNANCE_PROGRAM_ID: &str = "9XcHeSSNVRDP4bkpXe3bgYVoQC1UGBS39JAB8w6L1CmU";
 const TOKEN_MINT: &str = "GgQuhpBUxy7LaD56c2vbxk5hSgoBuNwxxev6U9iqyMXZ";
-const VOUTER_SECRET: &str = "~/.config/solana/id1.json";
+const VOTER_SECRET: &str = "~/.config/solana/id1.json";
 const TOKEN_PROGRAM: &str = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
 const ASSOCIATED_TOKEN_PROGRAM: &str = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
 
@@ -225,7 +225,7 @@ async fn add_project(project_key: &str, round: u8) -> Result<(), Box<dyn Error>>
             system_program: system_program::ID,
         })
         .args(governance::instruction::AddProject {
-            idx: project_key.to_owned(),
+            id: project_key.to_owned(),
         })
         .signer(&*payer)
         .send()
@@ -242,11 +242,11 @@ async fn add_project(project_key: &str, round: u8) -> Result<(), Box<dyn Error>>
 async fn do_vote(project_key: &str, round: u8) -> Result<(), Box<dyn Error>> {
     let keypair = get_keypair(ADMIN_SECRET)?;
     let mint = "GgQuhpBUxy7LaD56c2vbxk5hSgoBuNwxxev6U9iqyMXZ".parse::<Pubkey>()?;
-    let vouter_keypair = get_keypair(VOUTER_SECRET)?;
+    let voter_keypair = get_keypair(VOTER_SECRET)?;
 
     let cluster = Cluster::Devnet;
     let payer = Rc::new(keypair);
-    let vouter = Rc::new(vouter_keypair);
+    let voter = Rc::new(voter_keypair);
     let client = Client::new(cluster, payer.clone());
 
     let governance_program_pubkey = GOVERNANCE_PROGRAM_ID.parse::<Pubkey>()?;
@@ -254,7 +254,7 @@ async fn do_vote(project_key: &str, round: u8) -> Result<(), Box<dyn Error>> {
 
     let (vote_manager_pda, _) = derive_vote_manager_pda(&program.payer(), &program.id());
 
-    let (vouter_pda, _) = derive_vouter_pda(round, &vouter.pubkey(), &program.id());
+    let (voter_pda, _) = derive_voter_pda(round, &voter.pubkey(), &program.id());
 
     let (project_data_pda, _project_bump) =
         derive_project_pda(project_key, round, &program.payer(), &program.id());
@@ -266,8 +266,8 @@ async fn do_vote(project_key: &str, round: u8) -> Result<(), Box<dyn Error>> {
             &TOKEN_PROGRAM.parse::<Pubkey>()?,
         );
 
-    let vouter_ata = anchor_spl::associated_token::get_associated_token_address_with_program_id(
-        &vouter.pubkey(),
+    let voter_ata = anchor_spl::associated_token::get_associated_token_address_with_program_id(
+        &voter.pubkey(),
         &mint,
         &TOKEN_PROGRAM.parse::<Pubkey>()?,
     );
@@ -279,25 +279,22 @@ async fn do_vote(project_key: &str, round: u8) -> Result<(), Box<dyn Error>> {
     println!("Payer Pubkey: {}", payer.pubkey());
     println!("Mint Pubkey: {}", mint);
     println!("Admin Token Account: {}", admin_token_account);
-    println!("Vouter ATA: {}", vouter_ata);
+    println!("Voter ATA: {}", voter_ata);
 
     let send_res = program
         .request()
         .accounts(governance::accounts::EnsureCanVote {
-            signer: vouter.pubkey(),
+            signer: voter.pubkey(),
             admin_token_account,
             admin_authority: payer.pubkey(),
             mint,
-            user_ata: vouter_ata,
+            user_ata: voter_ata,
             token_program: TOKEN_PROGRAM.parse::<Pubkey>()?,
             associated_token_program: ASSOCIATED_TOKEN_PROGRAM.parse::<Pubkey>()?,
             system_program: system_program::ID,
         })
-        .args(governance::instruction::EnsureUserCanVote {
-            vote_fee,
-            guard: "__granted_access_by__cli".to_owned(),
-        })
-        .signer(&*vouter)
+        .args(governance::instruction::EnsureUserCanVote { vote_fee })
+        .signer(&*voter)
         .send()
         .await;
 
@@ -308,19 +305,19 @@ async fn do_vote(project_key: &str, round: u8) -> Result<(), Box<dyn Error>> {
 
     let send_res = program
         .request()
-        .accounts(governance::accounts::Vouter {
-            vouter_data: vouter_pda,
-            signer: vouter.pubkey(),
+        .accounts(governance::accounts::Voter {
+            voter_data: voter_pda,
+            signer: voter.pubkey(),
             vote_manager: vote_manager_pda,
             admin_token_account,
             project: project_data_pda,
             mint,
-            token: vouter_ata,
+            token: voter_ata,
             token_program: TOKEN_PROGRAM.parse::<Pubkey>()?,
             system_program: system_program::ID,
         })
-        .args(governance::instruction::DoVote { round })
-        .signer(&*vouter)
+        .args(governance::instruction::DoVote)
+        .signer(&*voter)
         .send()
         .await;
 
@@ -332,13 +329,9 @@ async fn do_vote(project_key: &str, round: u8) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn derive_vouter_pda(round: u8, vouter_pubkey: &Pubkey, program_id: &Pubkey) -> (Pubkey, u8) {
+fn derive_voter_pda(round: u8, voter_pubkey: &Pubkey, program_id: &Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(
-        &[
-            b"vouter",
-            &[round, 1, 1, 1, 1, 1],
-            &vouter_pubkey.to_bytes(),
-        ],
+        &[b"voter", &[round, 1, 1, 1, 1, 1], &voter_pubkey.to_bytes()],
         program_id,
     )
 }

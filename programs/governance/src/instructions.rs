@@ -4,24 +4,21 @@ use anchor_spl::{
     token_interface::{Mint, TokenAccount, TokenInterface},
 };
 
+pub const PROJECT_ID_MAX_LEN: usize = 50;
+pub const VOTER_NAMESPACE: &str = "voter";
+
 pub fn initialize_vote(
     ctx: Context<Admin>,
     token_mint: Pubkey,
     token_program: Pubkey,
     init_vote_fee: u64,
 ) -> Result<()> {
-    // msg!("Pubkey hard {:#?}", ADMIN_PUBKEY);
-    // msg!("Pubkey ctx {}", ctx.accounts.owner.key());
-
     // Set the initial state of the VoteManager.
     ctx.accounts.vote_data.vote_round = 1;
     ctx.accounts.vote_data.admin = ctx.accounts.owner.key();
     ctx.accounts.vote_data.tk_mint = token_mint;
     ctx.accounts.vote_data.tk_program = token_program;
     ctx.accounts.vote_data.vote_fee = init_vote_fee;
-
-    // msg!("Vote program with admin: initialize!"); // Logs for transaction transparency.
-    // msg!("Round: 1");
     Ok(())
 }
 
@@ -30,16 +27,9 @@ pub fn initialize_vote(
 /// **Business Logic:**
 /// - Allows the admin to progress the voting cycle to the next round.
 /// - Updates the `vote_round` state in the VoteManager.
-///
-/// **Parameters:**
-/// - `ctx`: Context containing the accounts required to increment the round.
 pub fn increment_vote_round(ctx: Context<Admin>) -> Result<()> {
     // Increment the voting round.
     ctx.accounts.vote_data.vote_round += 1;
-    // msg!(
-    //     "New round is started: {}",
-    //     &ctx.accounts.vote_data.vote_round
-    // );
     Ok(())
 }
 
@@ -48,10 +38,6 @@ pub fn increment_vote_round(ctx: Context<Admin>) -> Result<()> {
 /// **Business Logic:**
 /// - Only the admin can modify the voting fee.
 /// - Updates the `vote_fee` state in the VoteManager.
-///
-/// **Parameters:**
-/// - `ctx`: Context containing the accounts required to change the fee.
-/// - `new_vote_fee`: The new fee amount to be set for voting.
 pub fn change_vote_fee(ctx: Context<Admin>, new_vote_fee: u64) -> Result<()> {
     // Update the voting fee.
     ctx.accounts.vote_data.vote_fee = new_vote_fee;
@@ -63,19 +49,13 @@ pub fn change_vote_fee(ctx: Context<Admin>, new_vote_fee: u64) -> Result<()> {
 /// **Business Logic:**
 /// - Allows the admin to introduce new projects for voting.
 /// - Initializes the project's vote count and associates it with the current round and fee.
-///
-/// **Parameters:**
-/// - `ctx`: Context containing the accounts required to add a new project.
-/// - `idx`: A unique identifier for the project.
-pub fn add_vote_project(ctx: Context<NewVoteProject>, idx: String) -> Result<()> {
+pub fn add_vote_project(ctx: Context<NewVoteProject>, id: String) -> Result<()> {
     // Initialize project data with reference to the VoteManager.
     ctx.accounts.project_data.vote_manager = ctx.accounts.vote_manager.admin;
-    ctx.accounts.project_data.idx = idx;
+    ctx.accounts.project_data.id = id;
     ctx.accounts.project_data.vote_count = 0;
     ctx.accounts.project_data.vote_round = ctx.accounts.vote_manager.vote_round;
-    ctx.accounts.project_data.vote_fee = ctx.accounts.vote_manager.vote_fee;
 
-    msg!("Admin init {}", ctx.accounts.vote_manager.admin);
     Ok(())
 }
 
@@ -86,25 +66,7 @@ pub fn add_vote_project(ctx: Context<NewVoteProject>, idx: String) -> Result<()>
 /// - Validates that the voter has sufficient tokens to cover the voting fee.
 /// - Updates the vote count for both the project and the voter.
 /// - Transfers the voting fee from the voter to the admin's fee account using Token-2022 CPI.
-///
-/// **Parameters:**
-/// - `ctx`: Context containing the accounts required to cast a vote.
-/// - `round`: The voting round in which the vote is being cast.
-pub fn _do_vote(ctx: Context<Vouter>) -> Result<()> {
-    // Increment vote counts for the project and the voter.
-    ctx.accounts.project.vote_count += 1;
-    ctx.accounts.vouter_data.vote_count += 1;
-    ctx.accounts.vouter_data.last_voted_round = ctx.accounts.project.vote_round;
-    ctx.accounts.vouter_data.vouter = ctx.accounts.signer.key();
-    ctx.accounts.vouter_data.project_name = (*ctx.accounts.project.idx).to_string();
-
-    msg!(
-        "{} voted for {}, total votes: {}",
-        ctx.accounts.signer.key(),
-        ctx.accounts.project.idx,
-        ctx.accounts.project.vote_count
-    );
-
+pub fn _do_vote(ctx: Context<Voter>) -> Result<()> {
     // Prepare the CPI context for transferring the voting fee.
     let cpi_accounts = anchor_spl::token_interface::TransferChecked {
         mint: ctx.accounts.mint.to_account_info(),
@@ -123,6 +85,13 @@ pub fn _do_vote(ctx: Context<Vouter>) -> Result<()> {
         0, // No decimal places for the fee.
     )?;
 
+    // Increment vote counts for the project and the voter.
+    ctx.accounts.project.vote_count += 1;
+    ctx.accounts.voter_data.vote_count += 1;
+    ctx.accounts.voter_data.last_voted_round = ctx.accounts.project.vote_round;
+    ctx.accounts.voter_data.voter = ctx.accounts.signer.key();
+    ctx.accounts.voter_data.project_name = (*ctx.accounts.project.id).to_string();
+
     Ok(())
 }
 
@@ -131,11 +100,6 @@ pub fn _do_vote(ctx: Context<Vouter>) -> Result<()> {
 /// **Business Logic:**
 /// - Manages the VoteManager account using PDA derivation with seeds.
 /// - Ensures the admin is the signer and has authority over the VoteManager.
-///
-/// **Parameters:**
-/// - `vote_data`: The VoteManager account derived using seeds.
-/// - `owner`: The admin's signer account.
-/// - `system_program`: The Solana System program for account initialization.
 #[derive(Accounts)]
 pub struct Admin<'info> {
     #[account(
@@ -160,14 +124,8 @@ pub struct Admin<'info> {
 /// **Business Logic:**
 /// - Initializes a new ProjectData account with PDA derivation ensuring uniqueness.
 /// - Associates the project with the current voting round and fee.
-///
-/// **Parameters:**
-/// - `project_data`: The ProjectData account derived using seeds.
-/// - `vote_manager`: The VoteManager account to which the project is being added.
-/// - `owner`: The admin's signer account.
-/// - `system_program`: The Solana System program for account initialization.
 #[derive(Accounts)]
-#[instruction(idx:String)]
+#[instruction(id:String)]
 pub struct NewVoteProject<'info> {
     #[account(
             // Initialize a new ProjectData account with unique PDA seeds.
@@ -175,7 +133,7 @@ pub struct NewVoteProject<'info> {
             payer = owner,
             space = 8 + ProjectData::INIT_SPACE,
             seeds = [
-                idx.as_bytes(),                         // Unique project identifier.
+                id.as_bytes(),                         // Unique project identifier.
                 &vote_manager.vote_round.to_le_bytes(), // Current voting round to ensure uniqueness across rounds.
                 owner.key().as_ref()                    // Admin's public key for authorization.
             ],
@@ -194,36 +152,26 @@ pub struct NewVoteProject<'info> {
 /// Defines the accounts required for casting a vote.
 ///
 /// **Business Logic:**
-/// - Initializes a VouterData account to track the voter's activity in the current round.
+/// - Initializes a VoterData account to track the voter's activity in the current round.
 /// - Ensures the voter's token account is authorized and has sufficient balance.
 /// - Facilitates the transfer of voting fees from the voter's token account to the admin's fee
 ///   account.
-///
-/// **Parameters:**
-/// - `vouter_data`: The VouterData account tracking the voter's voting activity.
-/// - `signer`: The voter's signer account.
-/// - `vote_manager`: The VoteManager account overseeing the voting process.
-/// - `admin_for_fee`: The admin's token account receiving the voting fee.
-/// - `project`: The ProjectData account representing the project being voted for.
-/// - `mint`: The token mint associated with the governance token (QZL).
-/// - `token`: The voter's token account holding QZL tokens.
-/// - `token_program`: The TokenInterface program for token operations.
-/// - `system_program`: The Solana System program.
 #[derive(Accounts)]
-#[instruction(round:u8)]
-pub struct Vouter<'info> {
+pub struct Voter<'info> {
     #[account(
             init_if_needed,
             payer = signer,
-            space = 8 + VouterData::INIT_SPACE,
+            space = 8 + VoterData::INIT_SPACE,
             seeds = [
-                b"vouter",
-                &[round, 1, 1, 1, 1, 1], // Seed combining the round number with padding for uniqueness.
-                signer.key().as_ref()     // Voter's public key to ensure unique PDA per voter per round.
+                VOTER_NAMESPACE.as_bytes(),
+                &[project.vote_round, 1, 1, 1, 1], // Seed combining theround number with padding for uniqueness.
+                signer.key().as_ref(),     // Voter's public key to ensure unique PDA per voter per round.
+                project.id.as_ref(),
             ],
-            bump
+            bump,
+            constraint = project.vote_round == vote_manager.vote_round @ VoteError::WrongRound
             )]
-    pub vouter_data: Account<'info, VouterData>, // Tracks the voter's voting activity.
+    pub voter_data: Account<'info, VoterData>, // Tracks the voter's voting activity.
     #[account(mut)]
     pub signer: Signer<'info>, // The voter's signer account.
     #[account(mut)]
@@ -272,7 +220,7 @@ pub struct VoteManager {
 ///
 /// **Fields:**
 /// - `vote_manager`: Reference to the VoteManager's admin.
-/// - `idx`: Unique identifier for the project.
+/// - `id`: Unique identifier for the project.
 /// - `name`: Name of the project.
 /// - `vote_round`: The voting round in which the project is active.
 /// - `vote_count`: Total number of votes the project has received.
@@ -281,26 +229,23 @@ pub struct VoteManager {
 #[derive(InitSpace)]
 pub struct ProjectData {
     pub vote_manager: Pubkey, // Reference to the VoteManager's admin.
-    #[max_len(50)]
-    pub idx: String, // Unique project identifier.
-    #[max_len(50)]
-    pub name: String, // Project name.
+    #[max_len(PROJECT_ID_MAX_LEN)]
+    pub id: String, // Unique project identifier.
     pub vote_round: u8,       // Voting round associated with the project.
     pub vote_count: u64,      // Total votes received.
-    pub vote_fee: u64,        // Voting fee for the project.
 }
 
-/// Represents the VouterData account tracking a voter's activity.
+/// Represents the VoterData account tracking a voter's activity.
 ///
 /// **Fields:**
-/// - `vouter`: The voter's public key.
+/// - `voter`: The voter's public key.
 /// - `project_name`: The name of the project the voter last voted for.
 /// - `last_voted_round`: The last round in which the voter cast a vote.
 /// - `vote_count`: Total number of votes the voter has cast.
 #[account]
 #[derive(InitSpace)]
-pub struct VouterData {
-    pub vouter: Pubkey, // Voter's public key.
+pub struct VoterData {
+    pub voter: Pubkey, // Voter's public key.
     #[max_len(50)]
     pub project_name: String, // Name of the project voted for.
     pub last_voted_round: u8, // Last round the voter participated in.
@@ -317,17 +262,15 @@ pub enum VoteError {
     WrongRound, // Triggered when a vote is cast in an incorrect round.
     #[msg("Admin account already initialized.")]
     InsufficientTokens, // Triggered when a voter lacks sufficient tokens to cast a vote.
-    #[msg("WrongMint")]
-    WrongMint, // Triggered when the token mint does not match expected values.
-    #[msg("WrongAdminForFee")]
-    WrongAdminForFee,
-    #[msg("NotAllowed")]
-    NotAllowed,
+    #[msg("ProjectIdTooLong")]
+    ProjectIdTooLong,
+    #[msg("IncorrectVoteFee")]
+    IncorrectVoteFee,
 }
 
-// Used only in CLI!
+/// Type which is used by CLI.
 #[derive(Accounts)]
-#[instruction(vote_fee:u64, guard:String)]
+#[instruction(vote_fee:u64)]
 pub struct EnsureCanVote<'info> {
     #[account(mut)]
     pub signer: Signer<'info>, // The voter's signer account.
@@ -337,9 +280,11 @@ pub struct EnsureCanVote<'info> {
             associated_token::mint = mint,
             associated_token::authority = admin_authority,
         )]
-    pub admin_token_account: InterfaceAccount<'info, TokenAccount>,
+    pub admin_token_account: InterfaceAccount<'info, anchor_spl::token_interface::TokenAccount>,
     pub admin_authority: Signer<'info>, // The explicit authority for admin_token_account.
-    pub mint: InterfaceAccount<'info, Mint>, // The governance token mint (QZL).
+    pub mint: InterfaceAccount<'info, Mint>, /* The governance
+                                         * token mint
+                                         * (QZL). */
     #[account(
            init_if_needed,
            payer = signer,
