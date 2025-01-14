@@ -53,15 +53,8 @@ pub fn increment_vote_round(ctx: Context<Admin>) -> Result<()> {
 /// - `ctx`: Context containing the accounts required to change the fee.
 /// - `new_vote_fee`: The new fee amount to be set for voting.
 pub fn change_vote_fee(ctx: Context<Admin>, new_vote_fee: u64) -> Result<()> {
-    // Verify that the transaction is initiated by the admin.
-    if ctx.accounts.owner.key() == ctx.accounts.vote_data.admin {
-        // Update the voting fee.
-        ctx.accounts.vote_data.vote_fee = new_vote_fee;
-        msg!("Fee is changed {}", ctx.accounts.vote_data.vote_fee);
-    } else {
-        // Log unauthorized attempt.
-        msg!("You are not admin {}", ctx.accounts.owner.key());
-    }
+    // Update the voting fee.
+    ctx.accounts.vote_data.vote_fee = new_vote_fee;
     Ok(())
 }
 

@@ -38,14 +38,7 @@ pub mod governance {
         token_program: Pubkey,
         init_vote_fee: u64,
     ) -> Result<()> {
-        // msg!("Pubkey hard {:#?}", ADMIN_PUBKEY);
-        // msg!("Pubkey ctx {}", ctx.accounts.owner.key());
-
-        require!(
-            ctx.accounts.owner.key() == ADMIN_PUBKEY,
-            VoteError::NotAdmin
-        );
-
+        check_is_admin(&ADMIN_PUBKEY, &ctx.accounts.owner.key())?;
         instructions::initialize_vote(ctx, token_mint, token_program, init_vote_fee)
     }
 
@@ -58,6 +51,7 @@ pub mod governance {
     /// **Parameters:**
     /// - `ctx`: Context containing the accounts required to increment the round.
     pub fn increment_round(ctx: Context<Admin>) -> Result<()> {
+        check_is_admin(&ADMIN_PUBKEY, &ctx.accounts.owner.key())?;
         instructions::increment_vote_round(ctx)
     }
 
@@ -71,6 +65,7 @@ pub mod governance {
     /// - `ctx`: Context containing the accounts required to change the fee.
     /// - `new_vote_fee`: The new fee amount to be set for voting.
     pub fn change_fee(ctx: Context<Admin>, new_vote_fee: u64) -> Result<()> {
+        check_is_admin(&ADMIN_PUBKEY, &ctx.accounts.owner.key())?;
         instructions::change_vote_fee(ctx, new_vote_fee)
     }
 
@@ -84,6 +79,7 @@ pub mod governance {
     /// - `ctx`: Context containing the accounts required to add a new project.
     /// - `idx`: A unique identifier for the project.
     pub fn add_project(ctx: Context<NewVoteProject>, idx: String) -> Result<()> {
+        check_is_admin(&ADMIN_PUBKEY, &ctx.accounts.owner.key())?;
         instructions::add_vote_project(ctx, idx)
     }
 
@@ -97,7 +93,7 @@ pub mod governance {
     ///
     /// **Parameters:**
     /// - `ctx`: Context containing the accounts required to cast a vote.
-    /// - `round`: The voting round in which the vote is being cast.
+    ///     - `round`: The voting round in which the vote is being cast.
     pub fn do_vote(ctx: Context<Vouter>, round: u8) -> Result<()> {
         // Validate that the vote is being cast in the current active round.
         require!(
@@ -124,27 +120,33 @@ pub mod governance {
 
         let user_qzl_amount = ctx.accounts.user_ata.amount;
 
-        if user_qzl_amount < vote_fee {
-            let cpi_accounts = anchor_spl::token_interface::TransferChecked {
-                mint: ctx.accounts.mint.to_account_info(),
-                from: ctx.accounts.admin_token_account.to_account_info(),
-                to: ctx.accounts.user_ata.to_account_info(),
-                authority: ctx.accounts.admin_authority.to_account_info(),
-            };
-
-            let cpi_ctx =
-                CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts);
-
-            anchor_spl::token_interface::transfer_checked(cpi_ctx, vote_fee, 0)?;
-
-            msg!(
-                "Successfully transferred {} tokens from admin to user.",
-                vote_fee
-            );
-        } else {
-            msg!("User already has {} QZL tokens", user_qzl_amount);
+        if user_qzl_amount >= vote_fee {
+            // user can vote
+            // msg!("User already has {} QZL tokens", user_qzl_amount);
+            return Ok(());
         }
+
+        let cpi_accounts = anchor_spl::token_interface::TransferChecked {
+            mint: ctx.accounts.mint.to_account_info(),
+            from: ctx.accounts.admin_token_account.to_account_info(),
+            to: ctx.accounts.user_ata.to_account_info(),
+            authority: ctx.accounts.admin_authority.to_account_info(),
+        };
+
+        let cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts);
+
+        anchor_spl::token_interface::transfer_checked(cpi_ctx, vote_fee, 0)?;
+
+        msg!(
+            "Successfully transferred {} tokens from admin to user.",
+            vote_fee
+        );
 
         Ok(())
     }
+}
+
+fn check_is_admin(admin_key: &Pubkey, signer_key: &Pubkey) -> Result<()> {
+    require!(signer_key == admin_key, VoteError::NotAdmin);
+    Ok(())
 }
