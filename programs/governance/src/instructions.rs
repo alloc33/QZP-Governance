@@ -189,10 +189,14 @@ pub struct Voter<'info> {
                                                                      * voting fee. */
     #[account(mut)]
     pub project: Account<'info, ProjectData>, // The project being voted for.
+    #[account(
+      mut,
+      constraint = mint.key() == vote_manager.tk_mint @ VoteError::WrongMint
+    )]
     pub mint: InterfaceAccount<'info, Mint>, // The governance token mint (QZL).
     #[account(mut)]
     pub token: InterfaceAccount<'info, TokenAccount>, /* Voter's token account holding QZL
-                                              * tokens. */
+                                                       * tokens. */
     pub token_program: Interface<'info, TokenInterface>, /* Token program interface for
                                                           * token operations. */
     pub system_program: Program<'info, System>, // Solana System program.
@@ -266,6 +270,8 @@ pub enum VoteError {
     ProjectIdTooLong,
     #[msg("IncorrectVoteFee")]
     IncorrectVoteFee,
+    #[msg("WrongMint")]
+    WrongMint,
 }
 
 /// Type which is used by CLI.
