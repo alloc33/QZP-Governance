@@ -56,7 +56,7 @@ function deriveProjectPda(projectId: string, round: number, adminPubkey: PublicK
   // Use a single-byte buffer for the round number as per the original logic.
   return PublicKey.findProgramAddressSync(
     [
-      Buffer.from("project_data"),
+      Buffer.from("project_data_v2"),
       Buffer.from(projectId),
       Buffer.from([round]), // 1-byte round number without padding
       adminPubkey.toBuffer(),

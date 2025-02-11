@@ -12,8 +12,8 @@ qzl_token = "8ZwtTHpU5sSqeJAUnKger3xLULB5q7yNGuKpaUGYFYMz"
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "Localnet"
-# cluster = "Devnet"
+# cluster = "Localnet"
+cluster = "Devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
