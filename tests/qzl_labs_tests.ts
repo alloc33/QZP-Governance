@@ -56,6 +56,7 @@ function deriveProjectPda(projectId: string, round: number, adminPubkey: PublicK
   // Use a single-byte buffer for the round number as per the original logic.
   return PublicKey.findProgramAddressSync(
     [
+      Buffer.from("project_data"),
       Buffer.from(projectId),
       Buffer.from([round]), // 1-byte round number without padding
       adminPubkey.toBuffer(),
@@ -776,7 +777,7 @@ describe("qzl-labs-tests", () => {
 
     const successfulVoteProjectId = generateProjectId(10);
     const voteManagerAccount = await program.account.voteManager.fetch(voteManagerPda);
-    const currentRound = voteManagerAccount.voteRound;;
+    const currentRound = voteManagerAccount.voteRound;
 
     const successfulVoteProjectPda = deriveProjectPda(successfulVoteProjectId, currentRound, adminWallet.publicKey);
 
