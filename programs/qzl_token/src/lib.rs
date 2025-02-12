@@ -1,5 +1,17 @@
 use anchor_lang::prelude::*;
 
+// security.txt is a standard which allows websites to define security policies.
+use solana_security_txt::security_txt;
+
+#[cfg(not(feature = "no-entrypoint"))]
+security_txt! {
+    // Required fields
+    name: "QZL Token",
+    project_url: "http://example.com",
+    contacts: "email:info@quantzillalabs.com",
+    policy: "https://github.com/anza-xyz/agave/blob/master/SECURITY.mdhttps://github.com/anza-xyz/agave/blob/master/SECURITY.md"
+}
+
 // Importing instruction handlers and utility functions.
 pub mod instructions;
 pub mod utils;

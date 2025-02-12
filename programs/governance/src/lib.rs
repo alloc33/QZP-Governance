@@ -3,6 +3,18 @@ use anchor_lang::prelude::*;
 pub mod instructions;
 pub use instructions::*;
 
+// security.txt is a standard which allows websites to define security policies.
+use solana_security_txt::security_txt;
+
+#[cfg(not(feature = "no-entrypoint"))]
+security_txt! {
+    // Required fields
+    name: "QZL Vote",
+    project_url: "http://example.com",
+    contacts: "email:info@quantzillalabs.com",
+    policy: "https://github.com/anza-xyz/agave/blob/master/SECURITY.mdhttps://github.com/anza-xyz/agave/blob/master/SECURITY.md"
+}
+
 // Declare the unique program ID that associates this Rust program with its deployed counterpart on
 // Solana.
 declare_id!("9XcHeSSNVRDP4bkpXe3bgYVoQC1UGBS39JAB8w6L1CmU");
@@ -61,10 +73,7 @@ pub mod governance {
     pub fn add_project(ctx: Context<NewVoteProject>, id: String) -> Result<()> {
         check_is_admin(&ADMIN_PUBKEY, &ctx.accounts.owner.key())?;
 
-        require!(
-            id.len() <= PROJECT_ID_MAX_LEN,
-            VoteError::ProjectIdTooLong
-        );
+        require!(id.len() <= PROJECT_ID_MAX_LEN, VoteError::ProjectIdTooLong);
 
         instructions::add_vote_project(ctx, id)
     }
@@ -88,10 +97,7 @@ pub mod governance {
 
     /// Only for CLI purposes. Kept here because in order to access accounts_data (account_info)
     /// accounts should be passed through the program's Context.
-    pub fn ensure_user_can_vote(
-        ctx: Context<EnsureCanVote>,
-        vote_fee: u64,
-    ) -> Result<()> {
+    pub fn ensure_user_can_vote(ctx: Context<EnsureCanVote>, vote_fee: u64) -> Result<()> {
         check_is_admin(&ADMIN_PUBKEY, &ctx.accounts.admin_authority.key())?;
 
         let user_qzl_amount = ctx.accounts.user_ata.amount;
