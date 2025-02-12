@@ -133,10 +133,10 @@ pub struct NewVoteProject<'info> {
             payer = owner,
             space = 8 + ProjectData::INIT_SPACE,
             seeds = [
-                b"project_data_v2",
                 id.as_bytes(),                         // Unique project identifier.
                 &vote_manager.vote_round.to_le_bytes(), // Current voting round to ensure uniqueness across rounds.
-                owner.key().as_ref()                    // Admin's public key for authorization.
+                owner.key().as_ref(),                    // Admin's public key for authorization.
+                b"project_data_v2",
             ],
             bump)]
     pub project_data: Account<'info, ProjectData>, // The new project's data account.
