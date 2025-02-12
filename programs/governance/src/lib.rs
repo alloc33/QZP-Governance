@@ -17,11 +17,11 @@ security_txt! {
 
 // Declare the unique program ID that associates this Rust program with its deployed counterpart on
 // Solana.
-declare_id!("9XcHeSSNVRDP4bkpXe3bgYVoQC1UGBS39JAB8w6L1CmU");
+declare_id!("7E25FzPJGehHZ6FsqZWrgCPVJ4pk6oDuMgC7EFys9Zpm");
 
 // Define a constant for the administrator's public key.
 // This key is used to authenticate administrative actions within the governance contract.
-pub const ADMIN_PUBKEY: Pubkey = pubkey!("2vJe2h4WnJiemMq7v6qu6zacunspeRqx8VPq6ZhjyA5X");
+pub const ADMIN_PUBKEY: Pubkey = pubkey!("E88MCgENj4uksz3QX9DUYRKqM8sJfqHGxCueWDnTPDep");
 
 #[program]
 pub mod governance {

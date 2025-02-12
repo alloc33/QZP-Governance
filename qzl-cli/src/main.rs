@@ -15,7 +15,7 @@ use anchor_client::{
 };
 
 const ADMIN_SECRET: &str = "~/.config/solana/id.json";
-const GOVERNANCE_PROGRAM_ID: &str = "9XcHeSSNVRDP4bkpXe3bgYVoQC1UGBS39JAB8w6L1CmU";
+const GOVERNANCE_PROGRAM_ID: &str = "7E25FzPJGehHZ6FsqZWrgCPVJ4pk6oDuMgC7EFys9Zpm";
 const TOKEN_MINT: &str = "GgQuhpBUxy7LaD56c2vbxk5hSgoBuNwxxev6U9iqyMXZ";
 const VOTER_SECRET: &str = "~/.config/solana/id1.json";
 const TOKEN_PROGRAM: &str = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";

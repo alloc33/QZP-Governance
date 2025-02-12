@@ -5,14 +5,13 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-governance = "9XcHeSSNVRDP4bkpXe3bgYVoQC1UGBS39JAB8w6L1CmU"
-qzl_token = "8ZwtTHpU5sSqeJAUnKger3xLULB5q7yNGuKpaUGYFYMz"
+governance = "7E25FzPJGehHZ6FsqZWrgCPVJ4pk6oDuMgC7EFys9Zpm"
+qzl_token = "5YGkyrCgrstFbc2zTTVxNPuAzQrkEvmDp8wu3zGpyh1R"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-# cluster = "Localnet"
 cluster = "Devnet"
 wallet = "~/.config/solana/id.json"
 

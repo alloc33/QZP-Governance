@@ -12,7 +12,7 @@ $ just help                              # Utility to print available commands
 $ just increment-round                   # Increment the current voting round
 $ just init-force                        # Initialize the VoteManager forcefully
 ```
-Be sure you have admin's dev wallet (pubkey: 2vJe2h4WnJiemMq7v6qu6zacunspeRqx8VPq6ZhjyA5X)
+Be sure you have admin's dev wallet (pubkey: E88MCgENj4uksz3QX9DUYRKqM8sJfqHGxCueWDnTPDep)
 
 This project consists of two Solana programs:
 
