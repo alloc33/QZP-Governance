@@ -12,6 +12,7 @@ DECIMALS=0
 
 # --- Step 1: Create the token mint ---
 # This command creates a token with metadata, group, member, close, and permanent delegate extensions enabled.
+echo
 echo "Creating token mint with extensions..."
 # spl-token create-token --enable-metadata --program-id TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb -ul
 CREATE_OUT=$(spl-token create-token \

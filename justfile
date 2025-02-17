@@ -18,13 +18,13 @@ _default:
 
 # Create QZL Token by running the minting script with environment variables
 create-token:
-    ADMIN_KEYPAIR={{ADMIN_KEYPAIR}} \
-    TOKEN_NAME={{TOKEN_NAME}} \
-    TOKEN_SYMBOL={{TOKEN_SYMBOL}} \
-    TOKEN_URI={{TOKEN_URI}} \
-    INITIAL_SUPPLY={{INITIAL_SUPPLY}} \
-    NETWORK={{NETWORK}} \
-    DECIMALS={{DECIMALS}} \
+    ADMIN_KEYPAIR="{{ADMIN_KEYPAIR}}" \
+    TOKEN_NAME="{{TOKEN_NAME}}" \
+    TOKEN_SYMBOL="{{TOKEN_SYMBOL}}" \
+    TOKEN_URI="{{TOKEN_URI}}" \
+    INITIAL_SUPPLY="{{INITIAL_SUPPLY}}" \
+    NETWORK="{{NETWORK}}" \
+    DECIMALS="{{DECIMALS}}" \
     ./qzl_mint.sh
 
 # Initialize the VoteManager forcefully
