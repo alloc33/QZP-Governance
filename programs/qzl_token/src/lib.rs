@@ -7,7 +7,7 @@ use solana_security_txt::security_txt;
 security_txt! {
     // Required fields
     name: "QZL Token",
-    project_url: "https://quantzillalabs.com/",
+    project_url: "http://example.com",
     contacts: "email:info@quantzillalabs.com",
     policy: "https://github.com/anza-xyz/agave/blob/master/SECURITY.mdhttps://github.com/anza-xyz/agave/blob/master/SECURITY.md"
 }

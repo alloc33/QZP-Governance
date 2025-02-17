@@ -14,7 +14,6 @@ use anchor_client::{
     ClientError::SolanaClientError,
 };
 
-const ADMIN_SECRET: &str = "~/.config/solana/id.json";
 const GOVERNANCE_PROGRAM_ID: &str = "7E25FzPJGehHZ6FsqZWrgCPVJ4pk6oDuMgC7EFys9Zpm";
 const TOKEN_MINT: &str = "GgQuhpBUxy7LaD56c2vbxk5hSgoBuNwxxev6U9iqyMXZ";
 const VOTER_SECRET: &str = "~/.config/solana/id1.json";
@@ -79,7 +78,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 }
 
 async fn init_force() -> Result<(), Box<dyn Error>> {
-    let keypair = get_keypair(ADMIN_SECRET)?;
+    let keypair = get_keypair(&admin_secret())?;
     let cluster = Cluster::Devnet;
     let payer = Rc::new(keypair);
     let client = Client::new(cluster, payer.clone());
@@ -113,7 +112,7 @@ async fn init_force() -> Result<(), Box<dyn Error>> {
 }
 
 async fn change_fee(new_fee: u64) -> Result<(), Box<dyn Error>> {
-    let keypair = get_keypair(ADMIN_SECRET)?;
+    let keypair = get_keypair(&admin_secret())?;
 
     let cluster = Cluster::Devnet;
 
@@ -148,7 +147,7 @@ async fn change_fee(new_fee: u64) -> Result<(), Box<dyn Error>> {
 }
 
 async fn get_round() -> Result<(), Box<dyn Error>> {
-    let keypair = get_keypair(ADMIN_SECRET)?;
+    let keypair = get_keypair(&admin_secret())?;
 
     let cluster = Cluster::Devnet;
 
@@ -170,7 +169,7 @@ async fn get_round() -> Result<(), Box<dyn Error>> {
 }
 
 async fn increment_round() -> Result<(), Box<dyn Error>> {
-    let keypair = get_keypair(ADMIN_SECRET)?;
+    let keypair = get_keypair(&admin_secret())?;
 
     let cluster = Cluster::Devnet;
 
@@ -203,7 +202,7 @@ async fn increment_round() -> Result<(), Box<dyn Error>> {
 }
 
 async fn add_project(project_key: &str, round: u8) -> Result<(), Box<dyn Error>> {
-    let keypair = get_keypair(ADMIN_SECRET)?;
+    let keypair = get_keypair(&admin_secret())?;
     let cluster = Cluster::Devnet;
     let payer = Rc::new(keypair);
     let client = Client::new(cluster, payer.clone());
@@ -240,7 +239,7 @@ async fn add_project(project_key: &str, round: u8) -> Result<(), Box<dyn Error>>
 }
 
 async fn do_vote(project_key: &str, round: u8) -> Result<(), Box<dyn Error>> {
-    let keypair = get_keypair(ADMIN_SECRET)?;
+    let keypair = get_keypair(&admin_secret())?;
     let mint = "GgQuhpBUxy7LaD56c2vbxk5hSgoBuNwxxev6U9iqyMXZ".parse::<Pubkey>()?;
     let voter_keypair = get_keypair(VOTER_SECRET)?;
 
@@ -355,6 +354,10 @@ fn derive_vote_manager_pda(admin_pubkey: &Pubkey, program_id: &Pubkey) -> (Pubke
 fn get_keypair(str: &str) -> Result<Keypair, Box<dyn Error>> {
     let file = String::from_utf8(tilde_expand::tilde_expand(str.as_bytes()))?;
     read_keypair_file(file)
+}
+
+fn admin_secret() -> String {
+    env::var("ADMIN_SECRET").unwrap_or_else(|_| "~/.config/solana/id.json".to_string())
 }
 
 fn print_transaction_logs(e: &anchor_client::ClientError) {
