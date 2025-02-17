@@ -1,14 +1,14 @@
 #!/bin/bash
 set -e
 
-# --- Configuration Variables ---
-ADMIN_KEYPAIR="/Users/nshv/.config/solana/id.json"     # Must correspond to ADMIN_PUBKEY in your program
-TOKEN_NAME="QZL Token"                            # Token name (used in metadata)
-TOKEN_SYMBOL="QZL"                                # Token symbol (used in metadata)
-TOKEN_URI="https://raw.githubusercontent.com/jorzhikgit/QZL/main/metadata.json"
-INITIAL_SUPPLY=450000000                               # Adjust to desired initial token supply
-NETWORK="-u localhost"                            # Use localnet; adjust if needed
-DECIMALS=0
+# --- Configuration Variables. Designed to be called using `just` tool ---
+ADMIN_KEYPAIR="${ADMIN_KEYPAIR:-/Users/nshv/.config/solana/id.json}"
+TOKEN_NAME="${TOKEN_NAME:-QZL Token}"
+TOKEN_SYMBOL="${TOKEN_SYMBOL:-QZL}"
+TOKEN_URI="${TOKEN_URI:-https://raw.githubusercontent.com/jorzhikgit/QZL/main/metadata.json}"
+INITIAL_SUPPLY="${INITIAL_SUPPLY:-450000000}"
+NETWORK="${NETWORK:--u localhost}"
+DECIMALS="${DECIMALS:-0}"
 
 # --- Step 1: Create the token mint ---
 # This command creates a token with metadata, group, member, close, and permanent delegate extensions enabled.
