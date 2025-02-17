@@ -46,6 +46,8 @@ This project consists of two Solana programs:
   -	Mints the initial supply to the admin’s account.
   -	Revokes mint authority to lock the supply.
 
+How to use: `$ just create-token`
+
 ```bash
 #!/bin/bash
 set -e
