@@ -2,7 +2,7 @@
 set -e
 
 # --- Configuration Variables. Designed to be called using `just` tool ---
-ADMIN_KEYPAIR="${ADMIN_KEYPAIR:-/Users/nshv/.config/solana/id.json}"
+ADMIN_KEYPAIR="${ADMIN_KEYPAIR:-/~/.config/solana/id.json}"
 TOKEN_NAME="${TOKEN_NAME:-QZL Token}"
 TOKEN_SYMBOL="${TOKEN_SYMBOL:-QZL}"
 TOKEN_URI="${TOKEN_URI:-https://raw.githubusercontent.com/jorzhikgit/QZL/main/metadata.json}"
