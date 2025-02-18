@@ -10,14 +10,14 @@ TOKEN_NAME     := "QZL Token"
 TOKEN_SYMBOL   := "QZL"
 TOKEN_URI      := "https://raw.githubusercontent.com/jorzhikgit/QZL/main/metadata.json"
 INITIAL_SUPPLY := "450000000"
-NETWORK        := "-ul"
+NETWORK        := "-ud"
 DECIMALS       := "0"
 
 _default:
     just --list
 
 # Create QZL Token by running the minting script with environment variables
-create-token:
+create-token: 
     ADMIN_KEYPAIR="{{ADMIN_KEYPAIR}}" \
     TOKEN_NAME="{{TOKEN_NAME}}" \
     TOKEN_SYMBOL="{{TOKEN_SYMBOL}}" \

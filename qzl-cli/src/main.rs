@@ -15,7 +15,7 @@ use anchor_client::{
 };
 
 const GOVERNANCE_PROGRAM_ID: &str = "7E25FzPJGehHZ6FsqZWrgCPVJ4pk6oDuMgC7EFys9Zpm";
-const TOKEN_MINT: &str = "GgQuhpBUxy7LaD56c2vbxk5hSgoBuNwxxev6U9iqyMXZ";
+const TOKEN_MINT: &str = "98avjq14YVKbrn8d2wiohZHs6B3MixS2ENqjCHCCbeNe";
 const VOTER_SECRET: &str = "~/.config/solana/id1.json";
 const TOKEN_PROGRAM: &str = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
 const ASSOCIATED_TOKEN_PROGRAM: &str = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
@@ -240,7 +240,6 @@ async fn add_project(project_key: &str, round: u8) -> Result<(), Box<dyn Error>>
 
 async fn do_vote(project_key: &str, round: u8) -> Result<(), Box<dyn Error>> {
     let keypair = get_keypair(&admin_secret())?;
-    let mint = "GgQuhpBUxy7LaD56c2vbxk5hSgoBuNwxxev6U9iqyMXZ".parse::<Pubkey>()?;
     let voter_keypair = get_keypair(VOTER_SECRET)?;
 
     let cluster = Cluster::Devnet;
@@ -261,13 +260,13 @@ async fn do_vote(project_key: &str, round: u8) -> Result<(), Box<dyn Error>> {
     let admin_token_account =
         anchor_spl::associated_token::get_associated_token_address_with_program_id(
             &program.payer(),
-            &mint,
+            &TOKEN_MINT.parse::<Pubkey>()?,
             &TOKEN_PROGRAM.parse::<Pubkey>()?,
         );
 
     let voter_ata = anchor_spl::associated_token::get_associated_token_address_with_program_id(
         &voter.pubkey(),
-        &mint,
+        &TOKEN_MINT.parse::<Pubkey>()?,
         &TOKEN_PROGRAM.parse::<Pubkey>()?,
     );
 
@@ -276,7 +275,7 @@ async fn do_vote(project_key: &str, round: u8) -> Result<(), Box<dyn Error>> {
     let vote_fee = vote_manager.vote_fee;
 
     println!("Payer Pubkey: {}", payer.pubkey());
-    println!("Mint Pubkey: {}", mint);
+    println!("Mint Pubkey: {}", TOKEN_MINT);
     println!("Admin Token Account: {}", admin_token_account);
     println!("Voter ATA: {}", voter_ata);
 
@@ -286,7 +285,7 @@ async fn do_vote(project_key: &str, round: u8) -> Result<(), Box<dyn Error>> {
             signer: voter.pubkey(),
             admin_token_account,
             admin_authority: payer.pubkey(),
-            mint,
+            mint: TOKEN_MINT.parse::<Pubkey>()?,
             user_ata: voter_ata,
             token_program: TOKEN_PROGRAM.parse::<Pubkey>()?,
             associated_token_program: ASSOCIATED_TOKEN_PROGRAM.parse::<Pubkey>()?,
@@ -310,7 +309,7 @@ async fn do_vote(project_key: &str, round: u8) -> Result<(), Box<dyn Error>> {
             vote_manager: vote_manager_pda,
             admin_token_account,
             project: project_data_pda,
-            mint,
+            mint: TOKEN_MINT.parse::<Pubkey>()?,
             token: voter_ata,
             token_program: TOKEN_PROGRAM.parse::<Pubkey>()?,
             system_program: system_program::ID,
