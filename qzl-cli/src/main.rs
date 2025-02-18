@@ -15,7 +15,7 @@ use anchor_client::{
 };
 
 const GOVERNANCE_PROGRAM_ID: &str = "7E25FzPJGehHZ6FsqZWrgCPVJ4pk6oDuMgC7EFys9Zpm";
-const TOKEN_MINT: &str = "98avjq14YVKbrn8d2wiohZHs6B3MixS2ENqjCHCCbeNe";
+const TOKEN_MINT: &str = "73pRcQsnGcKmaq5PVR8dvAFeTAhF5Vp7ihmYH1b6eMdo";
 const VOTER_SECRET: &str = "~/.config/solana/id1.json";
 const TOKEN_PROGRAM: &str = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
 const ASSOCIATED_TOKEN_PROGRAM: &str = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
@@ -27,47 +27,48 @@ async fn main() -> Result<(), Box<dyn Error>> {
     if args.len() < 2 {
         eprintln!("Usage:");
         eprintln!("  {} init_force", args[0]);
-        eprintln!("  {} add_project <project_key> <round>", args[0]);
+        eprintln!("  {} add_project <project_key>", args[0]);
         eprintln!("  {} change_fee <new_fee>", args[0]);
         eprintln!("  {} get_round", args[0]);
         eprintln!("  {} increment_round", args[0]);
-        eprintln!("  {} do_vote  <project_name> <round>", args[0]);
+        eprintln!("  {} do_vote <project_name>", args[0]);
         return Ok(());
     }
 
+    let admin_keypair = get_keypair(&admin_secret())?;
+    let cluster = network()?;
+
     match args[1].as_str() {
-        "init_force" => init_force().await?,
+        "init_force" => init_force(admin_keypair, cluster).await?,
         "change_fee" => {
             if args.len() < 3 {
                 eprintln!("Usage: {} change_fee <new_fee>", args[0]);
                 return Ok(());
             }
             let new_fee = args[2].parse::<u64>()?;
-            change_fee(new_fee).await?;
+            change_fee(new_fee, admin_keypair, cluster).await?;
         }
         "get_round" => {
-            get_round().await?;
+            get_round(admin_keypair, cluster).await?;
         }
         "increment_round" => {
-            increment_round().await?;
+            increment_round(admin_keypair, cluster).await?;
         }
         "add_project" => {
-            if args.len() < 4 {
-                eprintln!("Usage: {} add_project <project_key> <round>", args[0]);
+            if args.len() < 3 {
+                eprintln!("Usage: {} add_project <project_key>", args[0]);
                 return Ok(());
             }
             let project_key = &args[2];
-            let round = &args[3];
-            add_project(project_key, round.parse().unwrap()).await?;
+            add_project(project_key, admin_keypair, cluster).await?;
         }
         "do_vote" => {
-            if args.len() < 4 {
-                eprintln!("Usage: {} do_vote  <project_name> <round>", args[0]);
+            if args.len() < 3 {
+                eprintln!("Usage: {} do_vote <project_name>", args[0]);
                 return Ok(());
             }
             let project_key = &args[2];
-            let round = args[3].parse::<u8>()?;
-            do_vote(project_key, round).await?;
+            do_vote(project_key, admin_keypair, cluster).await?;
         }
         other => {
             eprintln!("Unknown command: {}", other);
@@ -77,10 +78,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-async fn init_force() -> Result<(), Box<dyn Error>> {
-    let keypair = get_keypair(&admin_secret())?;
-    let cluster = Cluster::Devnet;
-    let payer = Rc::new(keypair);
+async fn init_force(admin_keypair: Keypair, cluster: Cluster) -> Result<(), Box<dyn Error>> {
+    let payer = Rc::new(admin_keypair);
     let client = Client::new(cluster, payer.clone());
     let governance_program_pubkey = GOVERNANCE_PROGRAM_ID.parse::<Pubkey>()?;
     let program = client.program(governance_program_pubkey)?;
@@ -111,12 +110,12 @@ async fn init_force() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-async fn change_fee(new_fee: u64) -> Result<(), Box<dyn Error>> {
-    let keypair = get_keypair(&admin_secret())?;
-
-    let cluster = Cluster::Devnet;
-
-    let payer = Rc::new(keypair);
+async fn change_fee(
+    new_fee: u64,
+    admin_keypair: Keypair,
+    cluster: Cluster,
+) -> Result<(), Box<dyn Error>> {
+    let payer = Rc::new(admin_keypair);
     let client = Client::new(cluster, payer.clone());
 
     let governance_program_pubkey = GOVERNANCE_PROGRAM_ID.parse::<Pubkey>()?;
@@ -146,12 +145,8 @@ async fn change_fee(new_fee: u64) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-async fn get_round() -> Result<(), Box<dyn Error>> {
-    let keypair = get_keypair(&admin_secret())?;
-
-    let cluster = Cluster::Devnet;
-
-    let payer = Rc::new(keypair);
+async fn get_round(admin_keypair: Keypair, cluster: Cluster) -> Result<(), Box<dyn Error>> {
+    let payer = Rc::new(admin_keypair);
     let client = Client::new(cluster, payer.clone());
 
     let governance_program_pubkey = GOVERNANCE_PROGRAM_ID.parse::<Pubkey>()?;
@@ -168,12 +163,8 @@ async fn get_round() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-async fn increment_round() -> Result<(), Box<dyn Error>> {
-    let keypair = get_keypair(&admin_secret())?;
-
-    let cluster = Cluster::Devnet;
-
-    let payer = Rc::new(keypair);
+async fn increment_round(admin_keypair: Keypair, cluster: Cluster) -> Result<(), Box<dyn Error>> {
+    let payer = Rc::new(admin_keypair);
     let client = Client::new(cluster, payer.clone());
 
     let governance_program_pubkey = GOVERNANCE_PROGRAM_ID.parse::<Pubkey>()?;
@@ -201,10 +192,12 @@ async fn increment_round() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-async fn add_project(project_key: &str, round: u8) -> Result<(), Box<dyn Error>> {
-    let keypair = get_keypair(&admin_secret())?;
-    let cluster = Cluster::Devnet;
-    let payer = Rc::new(keypair);
+async fn add_project(
+    project_key: &str,
+    admin_keypair: Keypair,
+    cluster: Cluster,
+) -> Result<(), Box<dyn Error>> {
+    let payer = Rc::new(admin_keypair);
     let client = Client::new(cluster, payer.clone());
 
     let governance_program_pubkey = GOVERNANCE_PROGRAM_ID.parse::<Pubkey>()?;
@@ -212,8 +205,12 @@ async fn add_project(project_key: &str, round: u8) -> Result<(), Box<dyn Error>>
 
     let (vote_data_pda, _) = derive_vote_manager_pda(&program.payer(), &program.id());
 
+    let vote_manager: governance::instructions::VoteManager =
+        program.account(vote_data_pda).await?;
+    let current_round = vote_manager.vote_round;
+
     let (project_data_pda, _project_bump) =
-        derive_project_pda(project_key, round, &program.payer(), &program.id());
+        derive_project_pda(project_key, current_round, &program.payer(), &program.id());
 
     let send_res = program
         .request()
@@ -238,12 +235,13 @@ async fn add_project(project_key: &str, round: u8) -> Result<(), Box<dyn Error>>
     Ok(())
 }
 
-async fn do_vote(project_key: &str, round: u8) -> Result<(), Box<dyn Error>> {
-    let keypair = get_keypair(&admin_secret())?;
+async fn do_vote(
+    project_key: &str,
+    admin_keypair: Keypair,
+    cluster: Cluster,
+) -> Result<(), Box<dyn Error>> {
+    let payer = Rc::new(admin_keypair);
     let voter_keypair = get_keypair(VOTER_SECRET)?;
-
-    let cluster = Cluster::Devnet;
-    let payer = Rc::new(keypair);
     let voter = Rc::new(voter_keypair);
     let client = Client::new(cluster, payer.clone());
 
@@ -252,10 +250,14 @@ async fn do_vote(project_key: &str, round: u8) -> Result<(), Box<dyn Error>> {
 
     let (vote_manager_pda, _) = derive_vote_manager_pda(&program.payer(), &program.id());
 
-    let (voter_pda, _) = derive_voter_pda(round, &voter.pubkey(), &program.id());
+    let vote_manager: governance::instructions::VoteManager =
+        program.account(vote_manager_pda).await?;
+    let current_round = vote_manager.vote_round;
+
+    let (voter_pda, _) = derive_voter_pda(current_round, &voter.pubkey(), &program.id());
 
     let (project_data_pda, _project_bump) =
-        derive_project_pda(project_key, round, &program.payer(), &program.id());
+        derive_project_pda(project_key, current_round, &program.payer(), &program.id());
 
     let admin_token_account =
         anchor_spl::associated_token::get_associated_token_address_with_program_id(
@@ -357,6 +359,16 @@ fn get_keypair(str: &str) -> Result<Keypair, Box<dyn Error>> {
 
 fn admin_secret() -> String {
     env::var("ADMIN_SECRET").unwrap_or_else(|_| "~/.config/solana/id.json".to_string())
+}
+
+fn network() -> Result<Cluster, Box<dyn Error>> {
+    env::var("NETWORK")
+        .unwrap_or_else(|_| "-ul".into())
+        .chars()
+        .last()
+        .map(|c| c.to_string())
+        .ok_or("Invalid network".into())
+        .and_then(|s| s.parse::<Cluster>().map_err(|e| e.into()))
 }
 
 fn print_transaction_logs(e: &anchor_client::ClientError) {
