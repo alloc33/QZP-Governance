@@ -1,10 +1,7 @@
 use std::{env, error::Error, rc::Rc};
 
 use anchor_client::{
-    solana_sdk::{
-        pubkey::Pubkey, signature::read_keypair_file, system_instruction, system_program,
-        transaction::Transaction,
-    },
+    solana_sdk::{pubkey::Pubkey, signature::read_keypair_file, system_program},
     Client, Cluster,
 };
 
@@ -18,7 +15,7 @@ use anchor_client::{
 };
 
 const GOVERNANCE_PROGRAM_ID: &str = "CrJY78Q5h6xFUVD75mGGS5n3ECxWddtGUBYvTYE8pfjb";
-const TOKEN_MINT: &str = "Bbkv1bZo53q7gPicWeEShGxjwQRHy32E7C3KHSjBkqF6";
+const TOKEN_MINT: &str = "GANR5c9HXLZf393dWFMTA6vhVRt5hu8Qo6JQQyUF6yEK";
 const VOTER_SECRET: &str = "~/.config/solana/id1.json";
 const TOKEN_PROGRAM: &str = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
 const ASSOCIATED_TOKEN_PROGRAM: &str = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
@@ -285,7 +282,26 @@ async fn do_vote(
     println!("Mint Pubkey: {}", TOKEN_MINT);
     println!("Admin Token Account: {}", admin_token_account);
     println!("Voter ATA: {}", voter_ata);
+    // airdrop voter's wallet if it's not mainnet
+    match cluster {
+        Cluster::Mainnet => {}
+        _ => {
+            // Define the amount you want to airdrop, e.g., 1 SOL = 1_000_000_000 lamports.
+            let airdrop_amount = 1_000_000_000;
+            println!(
+                "Requesting airdrop of {} lamports to voter: {}",
+                airdrop_amount,
+                voter.pubkey()
+            );
 
+            // Request the airdrop via the RPC client.
+            let signature = rpc.request_airdrop(&voter.pubkey(), airdrop_amount)?;
+
+            // Optionally, wait for the transaction to be confirmed.
+            rpc.confirm_transaction(&signature)?;
+            println!("Airdrop confirmed.");
+        }
+    }
     let send_res = program
         .request()
         .accounts(governance::accounts::EnsureCanVote {
