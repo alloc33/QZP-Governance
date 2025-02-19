@@ -33,7 +33,7 @@ const program = anchor.workspace.Governance as Program<Governance>;
 const tokenProgram = anchor.workspace.TokenExtensions as Program<TokenExtensions>;
 
 // Define the initial supply of the QZL token.
-const QZL_TOKEN_INITIAL_SUPPLY = 450_000_000;
+const QZL_TOKEN_INITIAL_SUPPLY = 420_000_000;
 
 // Namespace used for deriving Voter PDAs. Helps in organizing related accounts.
 const VOTER_NAMESPACE = "voter";

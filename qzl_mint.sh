@@ -2,6 +2,7 @@
 set -e
 
 # Configuration variables (can be overridden via environment variables)
+# Check `justfile` for the default values.
 ADMIN_KEYPAIR="${ADMIN_KEYPAIR:-~/.config/solana/id.json}"
 TOKEN_NAME="${TOKEN_NAME:-QZL Token}"
 TOKEN_SYMBOL="${TOKEN_SYMBOL:-QZL}"
