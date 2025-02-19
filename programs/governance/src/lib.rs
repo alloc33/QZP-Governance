@@ -17,7 +17,7 @@ security_txt! {
 
 // Declare the unique program ID that associates this Rust program with its deployed counterpart on
 // Solana.
-declare_id!("7E25FzPJGehHZ6FsqZWrgCPVJ4pk6oDuMgC7EFys9Zpm");
+declare_id!("CrJY78Q5h6xFUVD75mGGS5n3ECxWddtGUBYvTYE8pfjb");
 
 // Define a constant for the administrator's public key.
 // This key is used to authenticate administrative actions within the governance contract.

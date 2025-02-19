@@ -1,7 +1,10 @@
 use std::{env, error::Error, rc::Rc};
 
 use anchor_client::{
-    solana_sdk::{pubkey::Pubkey, signature::read_keypair_file, system_program},
+    solana_sdk::{
+        pubkey::Pubkey, signature::read_keypair_file, system_instruction, system_program,
+        transaction::Transaction,
+    },
     Client, Cluster,
 };
 
@@ -14,8 +17,8 @@ use anchor_client::{
     ClientError::SolanaClientError,
 };
 
-const GOVERNANCE_PROGRAM_ID: &str = "7E25FzPJGehHZ6FsqZWrgCPVJ4pk6oDuMgC7EFys9Zpm";
-const TOKEN_MINT: &str = "73pRcQsnGcKmaq5PVR8dvAFeTAhF5Vp7ihmYH1b6eMdo";
+const GOVERNANCE_PROGRAM_ID: &str = "CrJY78Q5h6xFUVD75mGGS5n3ECxWddtGUBYvTYE8pfjb";
+const TOKEN_MINT: &str = "Bbkv1bZo53q7gPicWeEShGxjwQRHy32E7C3KHSjBkqF6";
 const VOTER_SECRET: &str = "~/.config/solana/id1.json";
 const TOKEN_PROGRAM: &str = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
 const ASSOCIATED_TOKEN_PROGRAM: &str = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
@@ -254,7 +257,8 @@ async fn do_vote(
         program.account(vote_manager_pda).await?;
     let current_round = vote_manager.vote_round;
 
-    let (voter_pda, _) = derive_voter_pda(current_round, &voter.pubkey(), &program.id());
+    let (voter_pda, _) =
+        derive_voter_pda(current_round, &voter.pubkey(), &program.id(), project_key);
 
     let (project_data_pda, _project_bump) =
         derive_project_pda(project_key, current_round, &program.payer(), &program.id());
@@ -274,6 +278,7 @@ async fn do_vote(
 
     let vote_manager: governance::instructions::VoteManager =
         program.account(vote_manager_pda).await?;
+
     let vote_fee = vote_manager.vote_fee;
 
     println!("Payer Pubkey: {}", payer.pubkey());
@@ -329,9 +334,19 @@ async fn do_vote(
     Ok(())
 }
 
-fn derive_voter_pda(round: u8, voter_pubkey: &Pubkey, program_id: &Pubkey) -> (Pubkey, u8) {
+fn derive_voter_pda(
+    round: u8,
+    voter_pubkey: &Pubkey,
+    program_id: &Pubkey,
+    project_id: &str,
+) -> (Pubkey, u8) {
     Pubkey::find_program_address(
-        &[b"voter", &[round, 1, 1, 1, 1, 1], &voter_pubkey.to_bytes()],
+        &[
+            b"voter",
+            &[round, 1, 1, 1, 1],
+            &voter_pubkey.to_bytes(),
+            project_id.as_bytes(),
+        ],
         program_id,
     )
 }

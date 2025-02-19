@@ -189,7 +189,7 @@ pub struct Voter<'info> {
                                                                      * voting fee. */
     #[account(mut)]
     pub project: Account<'info, ProjectData>, // The project being voted for.
-    #[account(constraint = mint.key() == vote_manager.tk_mint @ VoteError::WrongMint)]
+    #[account(mut, constraint = mint.key() == vote_manager.tk_mint @ VoteError::WrongMint)]
     pub mint: InterfaceAccount<'info, Mint>, // The governance token mint (QZL).
     #[account(mut)]
     pub token: InterfaceAccount<'info, TokenAccount>, /* Voter's token account holding QZL
