@@ -10,7 +10,11 @@ TOKEN_URI="${TOKEN_URI:-https://raw.githubusercontent.com/jorzhikgit/QZL/main/me
 INITIAL_SUPPLY="${INITIAL_SUPPLY:-420000000}"
 NETWORK="${NETWORK:--u localhost}"
 DECIMALS="${DECIMALS:-0}"
-DEFAULT_ATA_SIZE=165
+DEFAULT_ATA_SIZE=170 # default size for assocaited token account (Token-2022 standard)
+
+ADMIN_BALANCE_PRE=$(solana balance --output json | jq -r '.lamports' | awk '{printf "%.9f\n", $1/1000000000}')
+echo
+echo "Initial wallet balance: $ADMIN_BALANCE_PRE SOL"
 
 # Create the token mint with extensions enabled.
 echo
@@ -72,8 +76,14 @@ spl-token authorize "$TOKEN_MINT" mint --disable $NETWORK > /dev/null 2>&1
 echo "Mint authority revoked."
 
 echo
+echo "----------"
 echo "QZL Mint address: $TOKEN_MINT"
 echo "Admin token account (initial supply account): $ADMIN_TOKEN_ACCOUNT"
+echo "----------"
 echo
+
+# Wallet balance after token/associated token account creation
+ADMIN_BALANCE_AFTER=$(solana balance --output json | jq -r '.lamports' | awk '{printf "%.9f\n", $1/1000000000}')
+echo "SOL spent: $(echo "$ADMIN_BALANCE_PRE - $ADMIN_BALANCE_AFTER" | bc)"
 
 echo "Token setup complete."
