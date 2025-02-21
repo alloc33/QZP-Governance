@@ -4,11 +4,19 @@ set -e
 # ==========================
 # CONFIGURATION
 # ==========================
-# Set the path for the deploy wallet keypair (used solely for paying fees and signing transactions).
+# The deploy wallet keypair file (used solely for paying fees and signing transactions)
 DEPLOY_WALLET="${DEPLOY_WALLET:-~/.config/solana/qzl_deploy_wallet.json}"
-# Set the public key for the admin account. This account (which you don't control locally)
-# will be the ultimate owner of the token and its associated token account.
-ADMIN_PUBKEY="E88MCgENj4uksz3QX9DUYRKqM8sJfqHGxCueWDnTPDep"
+# The admin public key (the real admin; no private key available locally)
+ADMIN_PUBKEY="2dgctKxMBz2aNsAVLpUgnBeDTFuaMGrHm9FSxGMkyPCi"
+
+# Distribution percentages:
+# Treasury: 80%
+# Team: 10%
+# DEX: 10%
+
+TREASURY_PUBKEY="6srFBZBatJKoQhL8GU1XTgjX26MhbUecXiaZWA1nUikb"
+TEAM_PUBKEY="CbTTRiuStnDDoAARpAnXBGjC1Go4ftk8P2dPdW52soxS"
+DEX_PUBKEY="8q3P4ozJCHPMT7imummr4JFLHoXXD61vjz3o5KYdHewK"
 
 # Token parameters
 TOKEN_NAME="${TOKEN_NAME:-QZL Token}"
@@ -17,12 +25,11 @@ TOKEN_URI="${TOKEN_URI:-https://raw.githubusercontent.com/jorzhikgit/QZL/main/me
 INITIAL_SUPPLY="${INITIAL_SUPPLY:-420000000}"
 NETWORK="${NETWORK:--u devnet}"
 DECIMALS="${DECIMALS:-0}"
-DEFAULT_ATA_SIZE=170  # Default account size for an associated token account (Token-2022 standard)
+DEFAULT_ATA_SIZE=170  # Default size for an associated token account (Token-2022 standard)
 
 echo "Using deploy wallet: $DEPLOY_WALLET"
 echo "Using admin pubkey:  $ADMIN_PUBKEY"
 
-# Record the initial deploy wallet SOL balance
 DEPLOY_BALANCE_PRE=$(solana balance --keypair "$DEPLOY_WALLET" --output json | jq -r '.lamports' | awk '{printf "%.9f", $1/1000000000}')
 echo "Initial deploy wallet SOL: $DEPLOY_BALANCE_PRE"
 
@@ -38,7 +45,6 @@ CREATE_OUT=$(spl-token create-token \
   --decimals "$DECIMALS" \
   --mint-authority "$DEPLOY_WALLET" \
   $NETWORK)
-# Extract the mint address from the output.
 TOKEN_MINT=$(echo "$CREATE_OUT" | grep "Address" | awk '{print $NF}')
 echo "Token mint = $TOKEN_MINT"
 
@@ -53,52 +59,96 @@ spl-token initialize-metadata "$TOKEN_MINT" "$TOKEN_NAME" "$TOKEN_SYMBOL" "$TOKE
   $NETWORK
 
 # ==========================
-# 3) CREATE ADMIN'S ASSOCIATED TOKEN ACCOUNT
+# 3) CREATE TEMPORARY TOKEN ACCOUNT
 # ==========================
-echo "Creating admin's token account (ATA) for $TOKEN_MINT..."
+echo "Creating deploy wallet's token account (temporary holding account) for $TOKEN_MINT..."
+# Use the deploy wallet as owner so we can sign distribution transfers.
 CREATE_ATA_OUT=$(spl-token create-account "$TOKEN_MINT" \
   --fee-payer "$DEPLOY_WALLET" \
-  --owner "$ADMIN_PUBKEY" \
+  --owner "$(solana address --keypair "$DEPLOY_WALLET")" \
   $NETWORK)
-ADMIN_ATA=$(echo "$CREATE_ATA_OUT" | head -n1 | awk '{print $3}')
-echo "Admin ATA = $ADMIN_ATA"
+TEMP_ATA=$(echo "$CREATE_ATA_OUT" | head -n1 | awk '{print $3}')
+echo "Temporary ATA = $TEMP_ATA"
 
 # ==========================
-# 4) ENSURE RENT EXEMPTION
+# 4) ENSURE RENT EXEMPTION FOR TEMP ATA
 # ==========================
-echo "Ensuring admin ATA is rent-exempt..."
-# Obtain account size (default if unavailable)
-ACCOUNT_SIZE=$(solana account "$ADMIN_ATA" $NETWORK --output json | jq -r '.account.space // 170')
+echo "Ensuring temporary ATA is rent-exempt..."
+ACCOUNT_SIZE=$(solana account "$TEMP_ATA" $NETWORK --output json | jq -r '.account.space // 170')
 MIN_BALANCE=$(solana rent "$ACCOUNT_SIZE" --output json | jq -r '.rentExemptMinimumLamports')
-CURRENT_BALANCE=$(solana balance "$ADMIN_ATA" --lamports --keypair "$DEPLOY_WALLET" $NETWORK | awk '{print $1}')
+CURRENT_BALANCE=$(solana balance "$TEMP_ATA" --lamports --keypair "$DEPLOY_WALLET" $NETWORK | awk '{print $1}')
 if [ -z "$CURRENT_BALANCE" ] || [ "$CURRENT_BALANCE" = "null" ]; then
   CURRENT_BALANCE=0
 fi
 
 if [ "$CURRENT_BALANCE" -lt "$MIN_BALANCE" ]; then
   DIFF=$(( MIN_BALANCE - CURRENT_BALANCE ))
-  echo "Account balance ($CURRENT_BALANCE lamports) is less than required ($MIN_BALANCE lamports)."
-  echo "Funding $ADMIN_ATA with $DIFF lamports for rent exemption..."
-  solana transfer "$ADMIN_ATA" "$DIFF" \
+  echo "Funding $TEMP_ATA with $DIFF lamports for rent exemption..."
+  solana transfer "$TEMP_ATA" "$DIFF" \
     --fee-payer "$DEPLOY_WALLET" \
     --from "$DEPLOY_WALLET" \
     $NETWORK --allow-unfunded-recipient --commitment confirmed
 fi
 
 # ==========================
-# 5) MINT INITIAL SUPPLY TO ADMIN'S ATA
+# 5) MINT INITIAL SUPPLY TO TEMP ATA
 # ==========================
-echo "Minting $INITIAL_SUPPLY tokens to admin's ATA..."
-spl-token mint "$TOKEN_MINT" "$INITIAL_SUPPLY" "$ADMIN_ATA" \
+echo "Minting $INITIAL_SUPPLY tokens to temporary ATA..."
+spl-token mint "$TOKEN_MINT" "$INITIAL_SUPPLY" "$TEMP_ATA" \
   --fee-payer "$DEPLOY_WALLET" \
   --mint-authority "$DEPLOY_WALLET" \
   $NETWORK
 
 # ==========================
-# 6) DISABLE EXTENSION AUTHORITY & MINT AUTHORITY
+# 6) DISTRIBUTE TOKENS TO TREASURY, TEAM, AND DEX
 # ==========================
-echo "Disabling group-member-pointer authority so deploy wallet has no leftover powers..."
-# Here we disable the "group-member-pointer" extension (which is used when --enable-member was set)
+echo "Distributing tokens from temporary ATA..."
+
+# Calculate amounts (assuming no decimals)
+TREASURY_AMOUNT=$(echo "$INITIAL_SUPPLY * 80 / 100" | bc)
+TEAM_AMOUNT=$(echo "$INITIAL_SUPPLY * 10 / 100" | bc)
+DEX_AMOUNT=$(echo "$INITIAL_SUPPLY * 10 / 100" | bc)
+
+echo "Creating treasury token account..."
+TREASURY_OUT=$(spl-token create-account "$TOKEN_MINT" \
+  --fee-payer "$DEPLOY_WALLET" \
+  --owner "$TREASURY_PUBKEY" \
+  $NETWORK)
+TREASURY_ATA=$(echo "$TREASURY_OUT" | head -n1 | awk '{print $3}')
+echo "Treasury ATA = $TREASURY_ATA"
+
+echo "Creating team token account..."
+TEAM_OUT=$(spl-token create-account "$TOKEN_MINT" \
+  --fee-payer "$DEPLOY_WALLET" \
+  --owner "$TEAM_PUBKEY" \
+  $NETWORK)
+TEAM_ATA=$(echo "$TEAM_OUT" | head -n1 | awk '{print $3}')
+echo "Team ATA = $TEAM_ATA"
+
+echo "Creating DEX token account..."
+DEX_OUT=$(spl-token create-account "$TOKEN_MINT" \
+  --fee-payer "$DEPLOY_WALLET" \
+  --owner "$DEX_PUBKEY" \
+  $NETWORK)
+DEX_ATA=$(echo "$DEX_OUT" | head -n1 | awk '{print $3}')
+echo "DEX ATA = $DEX_ATA"
+
+echo "Transferring $TREASURY_AMOUNT tokens to Treasury..."
+spl-token transfer "$TOKEN_MINT" "$TREASURY_AMOUNT" "$TREASURY_ATA" \
+  --fee-payer "$DEPLOY_WALLET" --owner "$(solana address --keypair "$DEPLOY_WALLET")" $NETWORK
+
+echo "Transferring $TEAM_AMOUNT tokens to Team..."
+spl-token transfer "$TOKEN_MINT" "$TEAM_AMOUNT" "$TEAM_ATA" \
+  --fee-payer "$DEPLOY_WALLET" --owner "$(solana address --keypair "$DEPLOY_WALLET")" $NETWORK
+
+echo "Transferring $DEX_AMOUNT tokens to DEX..."
+spl-token transfer "$TOKEN_MINT" "$DEX_AMOUNT" "$DEX_ATA" \
+  --fee-payer "$DEPLOY_WALLET" --owner "$(solana address --keypair "$DEPLOY_WALLET")" $NETWORK
+
+# ==========================
+# 7) DISABLE EXTENSION & MINT AUTHORITIES
+# ==========================
+echo "Disabling group-member-pointer authority so deploy wallet has no leftover rights..."
 spl-token authorize "$TOKEN_MINT" group-member-pointer --disable \
   --fee-payer "$DEPLOY_WALLET" \
   --owner "$DEPLOY_WALLET" \
@@ -111,14 +161,17 @@ spl-token authorize "$TOKEN_MINT" mint --disable \
   $NETWORK || true
 
 # ==========================
-# 7) FINAL REPORT
+# 8) FINAL REPORT
 # ==========================
 echo
 echo "QZL Mint address:        $TOKEN_MINT"
-echo "Admin token account:     $ADMIN_ATA"
+echo "Treasury token account:  $TREASURY_ATA"
+echo "Team token account:      $TEAM_ATA"
+echo "DEX token account:       $DEX_ATA"
 
 DEPLOY_BALANCE_POST=$(solana balance --keypair "$DEPLOY_WALLET" --output json | jq -r '.lamports' | awk '{printf "%.9f", $1/1000000000}')
 SPENT=$(echo "$DEPLOY_BALANCE_PRE - $DEPLOY_BALANCE_POST" | bc)
 echo "SOL spent by deploy wallet: $SPENT"
 
-echo "Token setup complete. The admin account now controls the entire supply and no further tokens can be minted."
+echo "Token setup complete."
+echo "Distribution complete: Treasury (80%), Team (10%), DEX (10%). Admin remains token-free but retains all rights."
