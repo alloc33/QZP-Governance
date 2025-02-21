@@ -5,6 +5,7 @@ cli            := "cargo run --bin qzl-cli --release"
 env_path       := "~/.config/solana"
 
 # Configuration Variables
+DEPLOY_WALLET  := "/Users/nshv/.config/solana/qzl_deploy_wallet.json"
 ADMIN_KEYPAIR  := "/Users/nshv/.config/solana/id.json"
 TOKEN_NAME     := "QZL Token"
 TOKEN_SYMBOL   := "QZL"
@@ -18,7 +19,7 @@ _default:
 
 # Create QZL Token by running the minting script with environment variables
 create-token: 
-    ADMIN_KEYPAIR="{{ADMIN_KEYPAIR}}" \
+    DEPLOY_WALLET="{{DEPLOY_WALLET}}" \
     TOKEN_NAME="{{TOKEN_NAME}}" \
     TOKEN_SYMBOL="{{TOKEN_SYMBOL}}" \
     TOKEN_URI="{{TOKEN_URI}}" \
