@@ -16,7 +16,7 @@ use anchor_client::{
 };
 
 const GOVERNANCE_PROGRAM_ID: &str = "CrJY78Q5h6xFUVD75mGGS5n3ECxWddtGUBYvTYE8pfjb";
-const TOKEN_MINT: &str = "6aqFDLo8MHxFzKTeNfaCbntjNg4r5tLWSyGo3fUAki3f";
+const TOKEN_MINT: &str = "DwiVP7FBdwXx3AVy9sGFRjtbuwzDdX3CYAS5NcQY2heg";
 const TOKEN_PROGRAM: &str = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
 const ASSOCIATED_TOKEN_PROGRAM: &str = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
 
