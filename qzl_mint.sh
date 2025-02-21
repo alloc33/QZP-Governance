@@ -4,16 +4,15 @@ set -e
 # ==========================
 # CONFIGURATION
 # ==========================
-# The deploy wallet keypair file (used solely for paying fees and signing transactions)
+# Set the deploy wallet keypair file (used solely for fees and signing transactions)
 DEPLOY_WALLET="${DEPLOY_WALLET:-~/.config/solana/qzl_deploy_wallet.json}"
-# The admin public key (the real admin; no private key available locally)
+# Set the admin public key (this account will ultimately own the tokens)
 ADMIN_PUBKEY="2dgctKxMBz2aNsAVLpUgnBeDTFuaMGrHm9FSxGMkyPCi"
 
 # Distribution percentages:
 # Treasury: 80%
 # Team: 10%
 # DEX: 10%
-
 TREASURY_PUBKEY="6srFBZBatJKoQhL8GU1XTgjX26MhbUecXiaZWA1nUikb"
 TEAM_PUBKEY="CbTTRiuStnDDoAARpAnXBGjC1Go4ftk8P2dPdW52soxS"
 DEX_PUBKEY="8q3P4ozJCHPMT7imummr4JFLHoXXD61vjz3o5KYdHewK"
@@ -25,7 +24,10 @@ TOKEN_URI="${TOKEN_URI:-https://raw.githubusercontent.com/jorzhikgit/QZL/main/me
 INITIAL_SUPPLY="${INITIAL_SUPPLY:-420000000}"
 NETWORK="${NETWORK:--u devnet}"
 DECIMALS="${DECIMALS:-0}"
-DEFAULT_ATA_SIZE=170  # Default size for an associated token account (Token-2022 standard)
+DEFAULT_ATA_SIZE=170  # Default ATA size for Token-2022
+
+# Set the deploy wallet as the default signer for all Solana CLI commands.
+solana config set --keypair "$DEPLOY_WALLET" > /dev/null
 
 echo "Using deploy wallet: $DEPLOY_WALLET"
 echo "Using admin pubkey:  $ADMIN_PUBKEY"
@@ -62,7 +64,6 @@ spl-token initialize-metadata "$TOKEN_MINT" "$TOKEN_NAME" "$TOKEN_SYMBOL" "$TOKE
 # 3) CREATE TEMPORARY TOKEN ACCOUNT
 # ==========================
 echo "Creating deploy wallet's token account (temporary holding account) for $TOKEN_MINT..."
-# Use the deploy wallet as owner so we can sign distribution transfers.
 CREATE_ATA_OUT=$(spl-token create-account "$TOKEN_MINT" \
   --fee-payer "$DEPLOY_WALLET" \
   --owner "$(solana address --keypair "$DEPLOY_WALLET")" \
@@ -104,7 +105,7 @@ spl-token mint "$TOKEN_MINT" "$INITIAL_SUPPLY" "$TEMP_ATA" \
 # ==========================
 echo "Distributing tokens from temporary ATA..."
 
-# Calculate amounts (assuming no decimals)
+# Calculate token amounts based on distribution percentages
 TREASURY_AMOUNT=$(echo "$INITIAL_SUPPLY * 80 / 100" | bc)
 TEAM_AMOUNT=$(echo "$INITIAL_SUPPLY * 10 / 100" | bc)
 DEX_AMOUNT=$(echo "$INITIAL_SUPPLY * 10 / 100" | bc)
@@ -135,15 +136,15 @@ echo "DEX ATA = $DEX_ATA"
 
 echo "Transferring $TREASURY_AMOUNT tokens to Treasury..."
 spl-token transfer "$TOKEN_MINT" "$TREASURY_AMOUNT" "$TREASURY_ATA" \
-  --fee-payer "$DEPLOY_WALLET" --owner "$(solana address --keypair "$DEPLOY_WALLET")" $NETWORK
+  --fee-payer "$DEPLOY_WALLET" $NETWORK
 
 echo "Transferring $TEAM_AMOUNT tokens to Team..."
 spl-token transfer "$TOKEN_MINT" "$TEAM_AMOUNT" "$TEAM_ATA" \
-  --fee-payer "$DEPLOY_WALLET" --owner "$(solana address --keypair "$DEPLOY_WALLET")" $NETWORK
+  --fee-payer "$DEPLOY_WALLET" $NETWORK
 
 echo "Transferring $DEX_AMOUNT tokens to DEX..."
 spl-token transfer "$TOKEN_MINT" "$DEX_AMOUNT" "$DEX_ATA" \
-  --fee-payer "$DEPLOY_WALLET" --owner "$(solana address --keypair "$DEPLOY_WALLET")" $NETWORK
+  --fee-payer "$DEPLOY_WALLET" $NETWORK
 
 # ==========================
 # 7) DISABLE EXTENSION & MINT AUTHORITIES
