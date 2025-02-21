@@ -28,7 +28,7 @@ NETWORK="${NETWORK:--u devnet}"
 DECIMALS="${DECIMALS:-0}"
 DEFAULT_ATA_SIZE=170  # Default size for a Token-2022 associated token account.
 
-# Set the deploy wallet as the default keypair for Solana CLI commands.
+# Configure the Solana CLI to use the deploy wallet as the default keypair.
 solana config set --keypair "$DEPLOY_WALLET" > /dev/null
 
 echo "Using deploy wallet: $DEPLOY_WALLET"
@@ -148,7 +148,7 @@ spl-token transfer "$TOKEN_MINT" "$DEX_AMOUNT" "$DEX_ATA" \
   --fee-payer "$DEPLOY_WALLET" $NETWORK
 
 # ==========================
-# 7) TRANSFER AUTHORITIES TO ADMIN
+# 7) TRANSFER AUTHORITIES TO ADMIN & DISABLE MINTING
 # ==========================
 echo "Transferring group-member-pointer authority to the admin account..."
 spl-token authorize "$TOKEN_MINT" group-member-pointer "$ADMIN_PUBKEY" \
@@ -156,14 +156,17 @@ spl-token authorize "$TOKEN_MINT" group-member-pointer "$ADMIN_PUBKEY" \
   --owner "$DEPLOY_WALLET" \
   $NETWORK
 
-echo "Transferring mint authority to the admin account..."
-spl-token authorize "$TOKEN_MINT" mint "$ADMIN_PUBKEY" \
+echo "Transferring metadata pointer authority to the admin account..."
+spl-token authorize "$TOKEN_MINT" metadata-pointer "$ADMIN_PUBKEY" \
   --fee-payer "$DEPLOY_WALLET" \
   --owner "$DEPLOY_WALLET" \
   $NETWORK
 
-# (Optionally, if you want to disable further minting entirely, you could disable mint authority here:
-# spl-token authorize "$TOKEN_MINT" mint --disable --fee-payer "$DEPLOY_WALLET" --owner "$ADMIN_PUBKEY" $NETWORK)
+echo "Disabling mint authority to lock further token minting..."
+spl-token authorize "$TOKEN_MINT" mint --disable \
+  --fee-payer "$DEPLOY_WALLET" \
+  --owner "$DEPLOY_WALLET" \
+  $NETWORK
 
 # ==========================
 # 8) FINAL REPORT
@@ -202,4 +205,4 @@ spl-token display "$TOKEN_MINT" --program-2022 $NETWORK
 echo
 echo "Token setup complete."
 echo "Distribution complete: Treasury (80%), Team (10%), DEX (10%)."
-echo "Admin account now controls all rights over the token."
+echo "Admin account now controls all rights over the token, and no further tokens can be minted."
