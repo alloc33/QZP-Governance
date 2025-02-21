@@ -1,6 +1,7 @@
 use std::{env, error::Error, rc::Rc};
 
 use anchor_client::{
+    solana_client::nonblocking::rpc_client::RpcClient,
     solana_sdk::{pubkey::Pubkey, signature::read_keypair_file, system_program},
     Client, Cluster,
 };
@@ -15,8 +16,7 @@ use anchor_client::{
 };
 
 const GOVERNANCE_PROGRAM_ID: &str = "CrJY78Q5h6xFUVD75mGGS5n3ECxWddtGUBYvTYE8pfjb";
-const TOKEN_MINT: &str = "GANR5c9HXLZf393dWFMTA6vhVRt5hu8Qo6JQQyUF6yEK";
-const VOTER_SECRET: &str = "~/.config/solana/id1.json";
+const TOKEN_MINT: &str = "6aqFDLo8MHxFzKTeNfaCbntjNg4r5tLWSyGo3fUAki3f";
 const TOKEN_PROGRAM: &str = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
 const ASSOCIATED_TOKEN_PROGRAM: &str = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
 
@@ -26,12 +26,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     if args.len() < 2 {
         eprintln!("Usage:");
-        eprintln!("  {} init_force", args[0]);
+        eprintln!("  {} initialize_voting", args[0]);
         eprintln!("  {} add_project <project_key>", args[0]);
         eprintln!("  {} change_fee <new_fee>", args[0]);
         eprintln!("  {} get_round", args[0]);
         eprintln!("  {} increment_round", args[0]);
-        eprintln!("  {} do_vote <project_name>", args[0]);
+        eprintln!("  {} do_vote <project_name> <voter_keypair>", args[0]);
+        eprintln!("  {} get_fee", args[0]);
+        eprintln!("  {} get_vote_count", args[0]);
         return Ok(());
     }
 
@@ -39,7 +41,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let cluster = network()?;
 
     match args[1].as_str() {
-        "init_force" => init_force(admin_keypair, cluster).await?,
+        "initialize_voting" => initialize_voting(admin_keypair, cluster).await?,
         "change_fee" => {
             if args.len() < 3 {
                 eprintln!("Usage: {} change_fee <new_fee>", args[0]);
@@ -63,12 +65,24 @@ async fn main() -> Result<(), Box<dyn Error>> {
             add_project(project_key, admin_keypair, cluster).await?;
         }
         "do_vote" => {
-            if args.len() < 3 {
-                eprintln!("Usage: {} do_vote <project_name>", args[0]);
+            if args.len() < 4 {
+                eprintln!("Usage: {} do_vote <project_name> <voter_keypair>", args[0]);
                 return Ok(());
             }
             let project_key = &args[2];
-            do_vote(project_key, admin_keypair, cluster).await?;
+            let voter_keypair = get_keypair(&args[3])?;
+            do_vote(project_key, admin_keypair, voter_keypair, cluster).await?;
+        }
+        "get_fee" => {
+            get_fee(admin_keypair, cluster).await?;
+        }
+        "get_vote_count" => {
+            if args.len() < 3 {
+                eprintln!("Usage: {} get_vote_count <project_key>", args[0]);
+                return Ok(());
+            }
+            let project_key = &args[2];
+            get_vote_count(project_key, admin_keypair, cluster).await?;
         }
         other => {
             eprintln!("Unknown command: {}", other);
@@ -78,7 +92,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-async fn init_force(admin_keypair: Keypair, cluster: Cluster) -> Result<(), Box<dyn Error>> {
+async fn initialize_voting(admin_keypair: Keypair, cluster: Cluster) -> Result<(), Box<dyn Error>> {
     let payer = Rc::new(admin_keypair);
     let client = Client::new(cluster, payer.clone());
     let governance_program_pubkey = GOVERNANCE_PROGRAM_ID.parse::<Pubkey>()?;
@@ -238,12 +252,12 @@ async fn add_project(
 async fn do_vote(
     project_key: &str,
     admin_keypair: Keypair,
+    voter_keypair: Keypair,
     cluster: Cluster,
 ) -> Result<(), Box<dyn Error>> {
     let payer = Rc::new(admin_keypair);
-    let voter_keypair = get_keypair(VOTER_SECRET)?;
     let voter = Rc::new(voter_keypair);
-    let client = Client::new(cluster, payer.clone());
+    let client = Client::new(cluster.clone(), payer.clone());
 
     let governance_program_pubkey = GOVERNANCE_PROGRAM_ID.parse::<Pubkey>()?;
     let program = client.program(governance_program_pubkey)?;
@@ -278,30 +292,45 @@ async fn do_vote(
 
     let vote_fee = vote_manager.vote_fee;
 
+    let rpc_client = RpcClient::new(cluster.url().to_string());
+
+    match cluster {
+        Cluster::Mainnet => {}
+        _ => {
+            let threshold = 10_000_000_000;
+            let current_balance = rpc_client.get_balance(&voter.pubkey()).await?;
+            println!("Current voter balance is: {} lamports", current_balance);
+
+            if current_balance < threshold {
+                let airdrop_amount = threshold; // or any amount you want
+                println!(
+                    "Balance is below threshold; requesting an airdrop of {} lamports for voter: \
+                     {}",
+                    airdrop_amount,
+                    voter.pubkey()
+                );
+
+                let signature = rpc_client
+                    .request_airdrop(&voter.pubkey(), airdrop_amount)
+                    .await?;
+                rpc_client.confirm_transaction(&signature).await?;
+
+                println!(
+                    "Airdrop confirmed. New balance will be at least {} lamports.",
+                    threshold
+                );
+
+                println!("Waiting for balance to update...");
+                tokio::time::sleep(std::time::Duration::from_secs(7)).await;
+            }
+        }
+    }
+
     println!("Payer Pubkey: {}", payer.pubkey());
     println!("Mint Pubkey: {}", TOKEN_MINT);
     println!("Admin Token Account: {}", admin_token_account);
     println!("Voter ATA: {}", voter_ata);
-    // airdrop voter's wallet if it's not mainnet
-    match cluster {
-        Cluster::Mainnet => {}
-        _ => {
-            // Define the amount you want to airdrop, e.g., 1 SOL = 1_000_000_000 lamports.
-            let airdrop_amount = 1_000_000_000;
-            println!(
-                "Requesting airdrop of {} lamports to voter: {}",
-                airdrop_amount,
-                voter.pubkey()
-            );
 
-            // Request the airdrop via the RPC client.
-            let signature = rpc.request_airdrop(&voter.pubkey(), airdrop_amount)?;
-
-            // Optionally, wait for the transaction to be confirmed.
-            rpc.confirm_transaction(&signature)?;
-            println!("Airdrop confirmed.");
-        }
-    }
     let send_res = program
         .request()
         .accounts(governance::accounts::EnsureCanVote {
@@ -346,6 +375,51 @@ async fn do_vote(
         Ok(sig) => println!("Success! Vote casted. Tx signature: {sig}"),
         Err(e) => print_transaction_logs(&e),
     }
+
+    Ok(())
+}
+
+async fn get_fee(admin_keypair: Keypair, cluster: Cluster) -> Result<(), Box<dyn Error>> {
+    let payer = Rc::new(admin_keypair);
+    let client = Client::new(cluster, payer.clone());
+    let governance_program_pubkey = GOVERNANCE_PROGRAM_ID.parse::<Pubkey>()?;
+    let program = client.program(governance_program_pubkey)?;
+
+    let (vote_data_pda, _) = derive_vote_manager_pda(&program.payer(), &program.id());
+    let vote_manager: governance::instructions::VoteManager =
+        program.account(vote_data_pda).await?;
+
+    println!("Current vote fee: {}", vote_manager.vote_fee);
+
+    Ok(())
+}
+
+async fn get_vote_count(
+    project_key: &str,
+    admin_keypair: Keypair,
+    cluster: Cluster,
+) -> Result<(), Box<dyn Error>> {
+    let payer = Rc::new(admin_keypair);
+    let client = Client::new(cluster, payer.clone());
+    let governance_program_pubkey = GOVERNANCE_PROGRAM_ID.parse::<Pubkey>()?;
+    let program = client.program(governance_program_pubkey)?;
+
+    // Get the current voting round from the VoteManager account.
+    let (vote_data_pda, _) = derive_vote_manager_pda(&program.payer(), &program.id());
+    let vote_manager: governance::instructions::VoteManager =
+        program.account(vote_data_pda).await?;
+    let current_round = vote_manager.vote_round; // Depending on your generated type, this may be voteRound
+
+    // Derive the PDA for the specified project.
+    let (project_pda, _) =
+        derive_project_pda(project_key, current_round, &program.payer(), &program.id());
+
+    // Fetch the ProjectData account.
+    let project_data: governance::ProjectData = program.account(project_pda).await?;
+    println!(
+        "Project {} vote count: {}",
+        project_key, project_data.vote_count
+    );
 
     Ok(())
 }

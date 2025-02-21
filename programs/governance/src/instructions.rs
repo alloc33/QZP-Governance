@@ -259,6 +259,8 @@ pub struct VoterData {
 pub enum VoteError {
     #[msg("Vote program with admin: do not initialize!")]
     NotAdmin, // Triggered when a non-admin attempts an admin-only action.
+    #[msg("User already voted for this project.")]
+    AlreadyVoted,
     #[msg("Wrong vote round.")]
     WrongRound, // Triggered when a vote is cast in an incorrect round.
     #[msg("Admin account already initialized.")]

@@ -27,11 +27,11 @@ create-token:
     DECIMALS="{{DECIMALS}}" \
     ./qzl_mint.sh
 
-# Initialize the VoteManager forcefully
-init-force:
+# Initialize the VoteManager
+initialize-voting:
     ADMIN_SECRET={{ADMIN_KEYPAIR}} \
     NETWORK={{NETWORK}} \
-    {{cli}} init_force
+    {{cli}} initialize_voting
 
 # Add a project to a voting round
 add-project project_key:
@@ -58,10 +58,22 @@ increment-round:
     {{cli}} increment_round
 
 # Cast a vote for a project in a specific round
-do-vote project_name:
+do-vote project_name voter_keypair_path:
     ADMIN_SECRET={{ADMIN_KEYPAIR}} \
     NETWORK={{NETWORK}} \
-    {{cli}} do_vote {{project_name}}
+    {{cli}} do_vote {{project_name}} {{voter_keypair_path}}
+
+# Get the current voting fee
+get-fee:
+    ADMIN_SECRET={{ADMIN_KEYPAIR}} \
+    NETWORK={{NETWORK}} \
+    {{cli}} get_fee
+
+# Get the current voting fee
+get-vote-count project_key:
+    ADMIN_SECRET={{ADMIN_KEYPAIR}} \
+    NETWORK={{NETWORK}} \
+    {{cli}} get_vote_count {{project_key}}
 
 # Utility to print available commands
 help:

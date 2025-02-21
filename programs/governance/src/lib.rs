@@ -1,3 +1,5 @@
+#![allow(unexpected_cfgs)]
+
 use anchor_lang::prelude::*;
 
 pub mod instructions;
@@ -90,6 +92,12 @@ pub mod governance {
         require!(
             ctx.accounts.token.amount >= ctx.accounts.vote_manager.vote_fee,
             VoteError::InsufficientTokens
+        );
+
+        // If vote_count is already > 0, the user must have voted previously in this round.
+        require!(
+            ctx.accounts.voter_data.vote_count == 0,
+            VoteError::AlreadyVoted,
         );
 
         instructions::_do_vote(ctx)
