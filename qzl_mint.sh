@@ -28,7 +28,7 @@ NETWORK="${NETWORK:--u devnet}"
 DECIMALS="${DECIMALS:-0}"
 DEFAULT_ATA_SIZE=170  # Default size for a Token-2022 associated token account.
 
-# Configure the Solana CLI to use the deploy wallet as the default keypair.
+# Set the deploy wallet as the default keypair for Solana CLI commands.
 solana config set --keypair "$DEPLOY_WALLET" > /dev/null
 
 echo "Using deploy wallet: $DEPLOY_WALLET"
@@ -106,7 +106,7 @@ spl-token mint "$TOKEN_MINT" "$INITIAL_SUPPLY" "$TEMP_ATA" \
 # ==========================
 echo "Distributing tokens from the temporary ATA..."
 
-# Calculate distribution amounts based on the specified percentages.
+# Calculate distribution amounts.
 TREASURY_AMOUNT=$(echo "$INITIAL_SUPPLY * 80 / 100" | bc)
 TEAM_AMOUNT=$(echo "$INITIAL_SUPPLY * 10 / 100" | bc)
 DEX_AMOUNT=$(echo "$INITIAL_SUPPLY * 10 / 100" | bc)
@@ -150,29 +150,31 @@ spl-token transfer "$TOKEN_MINT" "$DEX_AMOUNT" "$DEX_ATA" \
 # ==========================
 # 7) TRANSFER AUTHORITIES TO ADMIN
 # ==========================
-echo "Transferring group-member-pointer authority to admin pubkey..."
+echo "Transferring group-member-pointer authority to the admin account..."
 spl-token authorize "$TOKEN_MINT" group-member-pointer "$ADMIN_PUBKEY" \
   --fee-payer "$DEPLOY_WALLET" \
   --owner "$DEPLOY_WALLET" \
   $NETWORK
 
-echo "Transferring mint authority to admin pubkey..."
+echo "Transferring mint authority to the admin account..."
 spl-token authorize "$TOKEN_MINT" mint "$ADMIN_PUBKEY" \
   --fee-payer "$DEPLOY_WALLET" \
   --owner "$DEPLOY_WALLET" \
   $NETWORK
 
-# (If you later decide to disable minting entirely, you can then run:
+# (Optionally, if you want to disable further minting entirely, you could disable mint authority here:
 # spl-token authorize "$TOKEN_MINT" mint --disable --fee-payer "$DEPLOY_WALLET" --owner "$ADMIN_PUBKEY" $NETWORK)
 
 # ==========================
 # 8) FINAL REPORT
 # ==========================
-echo
-echo "QZL Mint address:        $TOKEN_MINT"
-echo "Treasury token account:  $TREASURY_ATA"
-echo "Team token account:      $TEAM_ATA"
-echo "DEX token account:       $DEX_ATA"
+echo "----------------------------------------"
+echo "Final Token Setup Report:"
+echo "Token Mint Address:        $TOKEN_MINT"
+echo "Treasury Token Account:    $TREASURY_ATA"
+echo "Team Token Account:        $TEAM_ATA"
+echo "DEX Token Account:         $DEX_ATA"
+echo "----------------------------------------"
 
 DEPLOY_BALANCE_POST=$(solana balance --keypair "$DEPLOY_WALLET" --output json | jq -r '.lamports' | awk '{printf "%.9f", $1/1000000000}')
 SPENT=$(echo "$DEPLOY_BALANCE_PRE - $DEPLOY_BALANCE_POST" | bc)
@@ -191,11 +193,13 @@ echo "Admin token accounts (should be empty):"
 spl-token accounts --owner "$ADMIN_PUBKEY" --program-2022 $NETWORK || echo "No admin token accounts found."
 echo "-------------------------------"
 
-# Display detailed mint account information for verification.
-echo
-echo "Mint account info:"
-# solana account "$TOKEN_MINT" --output json | jq
-spl-token account-info "$TOKEN_MINT" $NETWORK
+# ==========================
+# 10) MINT ACCOUNT DETAILS
+# ==========================
+echo "Mint Account Information:"
+spl-token display "$TOKEN_MINT" --program-2022 $NETWORK
+
 echo
 echo "Token setup complete."
-echo "Distribution complete: Treasury (80%), Team (10%), DEX (10%). Admin remains token-free but retains all rights."
+echo "Distribution complete: Treasury (80%), Team (10%), DEX (10%)."
+echo "Admin account now controls all rights over the token."
