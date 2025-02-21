@@ -7,8 +7,7 @@ set -e
 # Path to the deploy wallet keypair. This wallet is used exclusively for paying transaction fees
 # and signing operations during deployment.
 DEPLOY_WALLET="${DEPLOY_WALLET:-~/.config/solana/qzl_deploy_wallet.json}"
-# The admin public key. This is the ultimate owner of the token and its associated accounts,
-# but its private key is not held locally.
+# The admin public key. This account will ultimately control the token and its associated accounts.
 ADMIN_PUBKEY="2dgctKxMBz2aNsAVLpUgnBeDTFuaMGrHm9FSxGMkyPCi"
 
 # Distribution percentages:
@@ -106,7 +105,7 @@ spl-token mint "$TOKEN_MINT" "$INITIAL_SUPPLY" "$TEMP_ATA" \
 # ==========================
 echo "Distributing tokens from the temporary ATA..."
 
-# Calculate distribution amounts.
+# Calculate distribution amounts based on the specified percentages.
 TREASURY_AMOUNT=$(echo "$INITIAL_SUPPLY * 80 / 100" | bc)
 TEAM_AMOUNT=$(echo "$INITIAL_SUPPLY * 10 / 100" | bc)
 DEX_AMOUNT=$(echo "$INITIAL_SUPPLY * 10 / 100" | bc)
@@ -158,6 +157,12 @@ spl-token authorize "$TOKEN_MINT" group-member-pointer "$ADMIN_PUBKEY" \
 
 echo "Transferring metadata pointer authority to the admin account..."
 spl-token authorize "$TOKEN_MINT" metadata-pointer "$ADMIN_PUBKEY" \
+  --fee-payer "$DEPLOY_WALLET" \
+  --owner "$DEPLOY_WALLET" \
+  $NETWORK
+
+echo "Transferring metadata update authority to the admin account..."
+spl-token authorize "$TOKEN_MINT" metadata "$ADMIN_PUBKEY" \
   --fee-payer "$DEPLOY_WALLET" \
   --owner "$DEPLOY_WALLET" \
   $NETWORK
