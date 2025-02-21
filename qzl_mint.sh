@@ -4,15 +4,17 @@ set -e
 # ==========================
 # CONFIGURATION
 # ==========================
-# Set the deploy wallet keypair file (used solely for fees and signing transactions)
+# Path to the deploy wallet keypair. This wallet is used exclusively for paying transaction fees
+# and signing operations during deployment.
 DEPLOY_WALLET="${DEPLOY_WALLET:-~/.config/solana/qzl_deploy_wallet.json}"
-# Set the admin public key (this account will ultimately own the tokens)
+# The admin public key. This is the ultimate owner of the token and its associated accounts,
+# but its private key is not held locally.
 ADMIN_PUBKEY="2dgctKxMBz2aNsAVLpUgnBeDTFuaMGrHm9FSxGMkyPCi"
 
 # Distribution percentages:
-# Treasury: 80%
-# Team: 10%
-# DEX: 10%
+# - Treasury: 80%
+# - Team: 10%
+# - DEX: 10%
 TREASURY_PUBKEY="6srFBZBatJKoQhL8GU1XTgjX26MhbUecXiaZWA1nUikb"
 TEAM_PUBKEY="CbTTRiuStnDDoAARpAnXBGjC1Go4ftk8P2dPdW52soxS"
 DEX_PUBKEY="8q3P4ozJCHPMT7imummr4JFLHoXXD61vjz3o5KYdHewK"
@@ -24,9 +26,9 @@ TOKEN_URI="${TOKEN_URI:-https://raw.githubusercontent.com/jorzhikgit/QZL/main/me
 INITIAL_SUPPLY="${INITIAL_SUPPLY:-420000000}"
 NETWORK="${NETWORK:--u devnet}"
 DECIMALS="${DECIMALS:-0}"
-DEFAULT_ATA_SIZE=170  # Default ATA size for Token-2022
+DEFAULT_ATA_SIZE=170  # Default size for a Token-2022 associated token account.
 
-# Set the deploy wallet as the default signer for all Solana CLI commands.
+# Set the deploy wallet as the default keypair for Solana CLI commands.
 solana config set --keypair "$DEPLOY_WALLET" > /dev/null
 
 echo "Using deploy wallet: $DEPLOY_WALLET"
@@ -53,7 +55,7 @@ echo "Token mint = $TOKEN_MINT"
 # ==========================
 # 2) INITIALIZE METADATA
 # ==========================
-echo "Initializing metadata for token mint..."
+echo "Initializing metadata for the token mint..."
 spl-token initialize-metadata "$TOKEN_MINT" "$TOKEN_NAME" "$TOKEN_SYMBOL" "$TOKEN_URI" \
   --fee-payer "$DEPLOY_WALLET" \
   --mint-authority "$DEPLOY_WALLET" \
@@ -63,7 +65,7 @@ spl-token initialize-metadata "$TOKEN_MINT" "$TOKEN_NAME" "$TOKEN_SYMBOL" "$TOKE
 # ==========================
 # 3) CREATE TEMPORARY TOKEN ACCOUNT
 # ==========================
-echo "Creating deploy wallet's token account (temporary holding account) for $TOKEN_MINT..."
+echo "Creating a temporary token account (owned by the deploy wallet) for initial minting..."
 CREATE_ATA_OUT=$(spl-token create-account "$TOKEN_MINT" \
   --fee-payer "$DEPLOY_WALLET" \
   --owner "$(solana address --keypair "$DEPLOY_WALLET")" \
@@ -74,17 +76,16 @@ echo "Temporary ATA = $TEMP_ATA"
 # ==========================
 # 4) ENSURE RENT EXEMPTION FOR TEMP ATA
 # ==========================
-echo "Ensuring temporary ATA is rent-exempt..."
+echo "Verifying that the temporary ATA is rent-exempt..."
 ACCOUNT_SIZE=$(solana account "$TEMP_ATA" $NETWORK --output json | jq -r '.account.space // 170')
 MIN_BALANCE=$(solana rent "$ACCOUNT_SIZE" --output json | jq -r '.rentExemptMinimumLamports')
 CURRENT_BALANCE=$(solana balance "$TEMP_ATA" --lamports --keypair "$DEPLOY_WALLET" $NETWORK | awk '{print $1}')
 if [ -z "$CURRENT_BALANCE" ] || [ "$CURRENT_BALANCE" = "null" ]; then
   CURRENT_BALANCE=0
 fi
-
 if [ "$CURRENT_BALANCE" -lt "$MIN_BALANCE" ]; then
   DIFF=$(( MIN_BALANCE - CURRENT_BALANCE ))
-  echo "Funding $TEMP_ATA with $DIFF lamports for rent exemption..."
+  echo "Funding $TEMP_ATA with $DIFF lamports to ensure rent exemption..."
   solana transfer "$TEMP_ATA" "$DIFF" \
     --fee-payer "$DEPLOY_WALLET" \
     --from "$DEPLOY_WALLET" \
@@ -94,7 +95,7 @@ fi
 # ==========================
 # 5) MINT INITIAL SUPPLY TO TEMP ATA
 # ==========================
-echo "Minting $INITIAL_SUPPLY tokens to temporary ATA..."
+echo "Minting $INITIAL_SUPPLY tokens to the temporary ATA..."
 spl-token mint "$TOKEN_MINT" "$INITIAL_SUPPLY" "$TEMP_ATA" \
   --fee-payer "$DEPLOY_WALLET" \
   --mint-authority "$DEPLOY_WALLET" \
@@ -103,9 +104,9 @@ spl-token mint "$TOKEN_MINT" "$INITIAL_SUPPLY" "$TEMP_ATA" \
 # ==========================
 # 6) DISTRIBUTE TOKENS TO TREASURY, TEAM, AND DEX
 # ==========================
-echo "Distributing tokens from temporary ATA..."
+echo "Distributing tokens from the temporary ATA..."
 
-# Calculate token amounts based on distribution percentages
+# Calculate distribution amounts based on the specified percentages.
 TREASURY_AMOUNT=$(echo "$INITIAL_SUPPLY * 80 / 100" | bc)
 TEAM_AMOUNT=$(echo "$INITIAL_SUPPLY * 10 / 100" | bc)
 DEX_AMOUNT=$(echo "$INITIAL_SUPPLY * 10 / 100" | bc)
@@ -149,13 +150,13 @@ spl-token transfer "$TOKEN_MINT" "$DEX_AMOUNT" "$DEX_ATA" \
 # ==========================
 # 7) DISABLE EXTENSION & MINT AUTHORITIES
 # ==========================
-echo "Disabling group-member-pointer authority so deploy wallet has no leftover rights..."
+echo "Revoking deploy wallet rights by disabling group-member-pointer authority..."
 spl-token authorize "$TOKEN_MINT" group-member-pointer --disable \
   --fee-payer "$DEPLOY_WALLET" \
   --owner "$DEPLOY_WALLET" \
   $NETWORK || true
 
-echo "Disabling mint authority to lock the token supply..."
+echo "Disabling mint authority to lock further token minting..."
 spl-token authorize "$TOKEN_MINT" mint --disable \
   --fee-payer "$DEPLOY_WALLET" \
   --owner "$DEPLOY_WALLET" \
@@ -174,5 +175,23 @@ DEPLOY_BALANCE_POST=$(solana balance --keypair "$DEPLOY_WALLET" --output json | 
 SPENT=$(echo "$DEPLOY_BALANCE_PRE - $DEPLOY_BALANCE_POST" | bc)
 echo "SOL spent by deploy wallet: $SPENT"
 
+# ==========================
+# 9) TOKEN BALANCE REPORT
+# ==========================
+echo "-------------------------------"
+echo "Token Balance Report:"
+echo "Temporary ATA balance: $(spl-token balance --address "$TEMP_ATA" $NETWORK 2>/dev/null || echo "0")"
+echo "Treasury ATA balance:  $(spl-token balance --address "$TREASURY_ATA" $NETWORK 2>/dev/null || echo "0")"
+echo "Team ATA balance:      $(spl-token balance --address "$TEAM_ATA" $NETWORK 2>/dev/null || echo "0")"
+echo "DEX ATA balance:       $(spl-token balance --address "$DEX_ATA" $NETWORK 2>/dev/null || echo "0")"
+echo "Admin token accounts (should be empty):"
+spl-token accounts --owner "$ADMIN_PUBKEY" --program-2022 $NETWORK || echo "No admin token accounts found."
+echo "-------------------------------"
+
+# display mint account info
+echo
+echo "Mint account info:"
+echo "$(spl-token account-info "$TOKEN_MINT" $NETWORK)"
+echo
 echo "Token setup complete."
 echo "Distribution complete: Treasury (80%), Team (10%), DEX (10%). Admin remains token-free but retains all rights."
