@@ -11,8 +11,8 @@ TOKEN_NAME     := "QZL Token"
 TOKEN_SYMBOL   := "QZL"
 TOKEN_URI      := "https://raw.githubusercontent.com/jorzhikgit/QZL/main/metadata.json"
 INITIAL_SUPPLY := "420000000"
-NETWORK        := "-ul" # (`l` - localnet, `d` - devnet etc)
-DECIMALS       := "0"
+NETWORK        := "-ud" # (`l` - localnet, `d` - devnet etc)
+DECIMALS       := "1"
 
 _default:
     just --list
