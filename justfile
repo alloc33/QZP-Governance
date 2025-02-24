@@ -7,12 +7,12 @@ env_path       := "~/.config/solana"
 # Configuration Variables
 DEPLOY_WALLET  := "/Users/nshv/.config/solana/qzl_deploy_wallet.json"
 ADMIN_KEYPAIR  := "/Users/nshv/.config/solana/id.json"
-TOKEN_NAME     := "QZL Token"
+TOKEN_NAME     := "Quantzilla Labs"
 TOKEN_SYMBOL   := "QZL"
-TOKEN_URI      := "https://raw.githubusercontent.com/jorzhikgit/QZL/main/metadata.json"
+TOKEN_URI      := "https://raw.githubusercontent.com/tisitw39/QZL-Metadata/main/metadata.json"
 INITIAL_SUPPLY := "420000000"
-NETWORK        := "-ud" # (`l` - localnet, `d` - devnet etc)
-DECIMALS       := "1"
+NETWORK        := "-ul" # (`l` - localnet, `d` - devnet etc)
+DECIMALS       := "9"
 
 _default:
     just --list

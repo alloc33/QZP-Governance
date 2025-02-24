@@ -6,7 +6,7 @@ set -e
 # ==========================
 # Path to the deploy wallet keypair. This wallet is used exclusively for paying transaction fees
 # and signing operations during deployment.
-DEPLOY_WALLET="${DEPLOY_WALLET:-~/.config/solana/qzl_deploy_wallet.json}"
+DEPLOY_WALLET="${DEPLOY_WALLET:-/Users/nshv/solana/qzl_deploy_wallet.json}"
 # The admin public key. This account will ultimately control the token and its associated accounts.
 ADMIN_PUBKEY="2dgctKxMBz2aNsAVLpUgnBeDTFuaMGrHm9FSxGMkyPCi"
 
