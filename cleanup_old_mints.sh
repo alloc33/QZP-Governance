@@ -27,21 +27,20 @@ NETWORK="-ul"
 # ------------------------------
 # List of mint addresses (old token versions to burn)
 MINTS=(
-  "97Gb6GmL44Qpn1sWJTwj1vWwmZ5izMPaqB4CK8XULak" 
-  "Dg9nA4THzRwC11TuAWH9RD1zjkoAnz15DbCj626Pkkaq"
+  "5HtCRjHYfW7oLM3Nu1SQ5wE5c9dLKSKHJ1xDFkBkxoUt" 
+  "Hdbhh2u3Q7CNFAxrLtAbxpGZtbGV8hpo9Aa1yFjQMtZu"
 )
 
 # Directory where keypair JSON files are stored.
-KEYPAIRS_DIR="/Users/nshv/Library/Mobile Documents/iCloud~md~obsidian/Documents/Work/Nyoka/qzl_test"
+KEYPAIRS_DIR=""
+# Private key files (ensure these files are present in KEYPAIRS_DIR)
+TREASURY_KEYPAIR=""                     # Treasury account (pubkey: 6srFBZ...)
+TEAM_KEYPAIR=""                         # Team account (pubkey: CbTTRi...)
+DEX_KEYPAIR=""                          # DEX account (pubkey: 8q3P4o...)
+PAYER_KEYPAIR=""                        # Payer account used for transaction fees
 
 # Change to the keypairs directory
 cd "$KEYPAIRS_DIR" || exit
-
-# Private key files (ensure these files are present in KEYPAIRS_DIR)
-TREASURY_KEYPAIR="treasure.json"    # Treasury account (pubkey: 6srFBZ...)
-TEAM_KEYPAIR="team.json"            # Team account (pubkey: CbTTRi...)
-DEX_KEYPAIR="dex.json"              # DEX account (pubkey: 8q3P4o...)
-PAYER_KEYPAIR="head_admin.json"     # Payer account used for transaction fees
 
 # Derive public keys (used to look up associated token accounts)
 TREASURY=$(solana-keygen pubkey "$TREASURY_KEYPAIR")
