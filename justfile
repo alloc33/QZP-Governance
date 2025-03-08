@@ -17,17 +17,6 @@ DECIMALS       := "9"
 _default:
     just --list
 
-# Create QZL Token by running the minting script with environment variables
-create-token: 
-    DEPLOY_WALLET="{{DEPLOY_WALLET}}" \
-    TOKEN_NAME="{{TOKEN_NAME}}" \
-    TOKEN_SYMBOL="{{TOKEN_SYMBOL}}" \
-    TOKEN_URI="{{TOKEN_URI}}" \
-    INITIAL_SUPPLY="{{INITIAL_SUPPLY}}" \
-    NETWORK="{{NETWORK}}" \
-    DECIMALS="{{DECIMALS}}" \
-    ./qzl_mint.sh
-
 # Initialize the VoteManager
 initialize-voting:
     ADMIN_SECRET={{ADMIN_KEYPAIR}} \
@@ -75,6 +64,18 @@ get-vote-count project_key:
     ADMIN_SECRET={{ADMIN_KEYPAIR}} \
     NETWORK={{NETWORK}} \
     {{cli}} get_vote_count {{project_key}}
+
+##################################################
+# Create QZL Token by running the minting script with environment variables
+create-token: 
+    DEPLOY_WALLET="{{DEPLOY_WALLET}}" \
+    TOKEN_NAME="{{TOKEN_NAME}}" \
+    TOKEN_SYMBOL="{{TOKEN_SYMBOL}}" \
+    TOKEN_URI="{{TOKEN_URI}}" \
+    INITIAL_SUPPLY="{{INITIAL_SUPPLY}}" \
+    NETWORK="{{NETWORK}}" \
+    DECIMALS="{{DECIMALS}}" \
+    ./qzl_mint.sh
 
 # Utility to print available commands
 help:

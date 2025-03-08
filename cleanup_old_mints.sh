@@ -1,29 +1,11 @@
-!/usr/bin/env bash
+#!/usr/bin/env bash
 set -e
 
-# -----------------------------------------------------------------------------
-# This script burns tokens (if any) from the Treasury, Team, and DEX 
-# associated token accounts for two specific mints.
-#
-# IMPORTANT:
-# - The mintAuthority for these mints has been disabled.
-# - This script does NOT attempt to close the mint itself.
-#
-# For ease-of-use, place all your keypair files (treasure.json, team.json,
-# dex.json, head_admin.json) in the same directory.
-# 
-# Public keys:
-# treasury: 6srFBZ...
-# team: CbTTRi...
-# dex: 8q3P4o...
-#
-# -----------------------------------------------------------------------------
-
-# Set the network (update this flag as needed: use "-um" for mainnet, "-ul" for localnet etc.)
-NETWORK="-ul"
+# Network or CLI flags (for mainnet: -um, devnet: -ud, etc.)
+NETWORK="${NETWORK:--ul}"
 
 # ------------------------------
-# 1) Configuration
+# 1) CONFIGURATION
 # ------------------------------
 # List of mint addresses (old token versions to burn)
 MINTS=(
@@ -31,16 +13,12 @@ MINTS=(
   "Hdbhh2u3Q7CNFAxrLtAbxpGZtbGV8hpo9Aa1yFjQMtZu"
 )
 
-# Directory where keypair JSON files are stored.
-KEYPAIRS_DIR=""
-# Private key files (ensure these files are present in KEYPAIRS_DIR)
-TREASURY_KEYPAIR=""                     # Treasury account (pubkey: 6srFBZ...)
-TEAM_KEYPAIR=""                         # Team account (pubkey: CbTTRi...)
-DEX_KEYPAIR=""                          # DEX account (pubkey: 8q3P4o...)
-PAYER_KEYPAIR=""                        # Payer account used for transaction fees
+AUTHORITY_KEYPAIR="${AUTHORITY_KEYPAIR:-/path/to/authority/keypair.json}"
 
-# Change to the keypairs directory
-cd "$KEYPAIRS_DIR" || exit
+# Keypairs for treasury, team, dex owners (for burning their accounts)
+TREASURY_KEYPAIR="${TREASURY_KEYPAIR:-/path/to/treasury/keypair.json}"
+TEAM_KEYPAIR="${TEAM_KEYPAIR:-/path/to/team/keypair.json}"
+DEX_KEYPAIR="${DEX_KEYPAIR:-/path/to/dex/keypair.json}"
 
 # Derive public keys (used to look up associated token accounts)
 TREASURY=$(solana-keygen pubkey "$TREASURY_KEYPAIR")
@@ -66,7 +44,7 @@ burn_and_close_account() {
     echo "Burning $BALANCE tokens from $TOKEN_ACCOUNT..."
     spl-token burn "$TOKEN_ACCOUNT" "$BALANCE" \
       --owner "$KEYPAIR" \
-      --fee-payer "$PAYER_KEYPAIR" \
+      --fee-payer "$AUTHORITY_KEYPAIR" \
       --program-2022 \
       $NETWORK
   fi
@@ -75,7 +53,7 @@ burn_and_close_account() {
   spl-token close \
     --address "$TOKEN_ACCOUNT" \
     --owner "$KEYPAIR" \
-    --fee-payer "$PAYER_KEYPAIR" \
+    --fee-payer "$AUTHORITY_KEYPAIR" \
     --program-2022 \
     $NETWORK || echo "  Could not close $TOKEN_ACCOUNT (possibly already closed)."
 }
@@ -100,3 +78,41 @@ for MINT in "${MINTS[@]}"; do
 done
 
 echo "All token burn operations completed!"
+
+####################################################################
+# CHANGE NAME, SYMBOL AND URI FOR OLD MINTS - MAKE THEM DEPRECATED #
+####################################################################
+
+# Update 1 field at time for each mint
+echo "Deprecating the following mints: ${MINTS[*]}"
+echo "Using fee-payer keypair: $AUTHORITY_KEYPAIR"
+echo "Network flag: $NETWORK"
+
+for mint in "${MINTS[@]}"; do
+  echo "----------------------------------------"
+  echo "Deprecating mint: $mint"
+  echo "----------------------------------------"
+
+  # Update the token name to "deprecated"
+  spl-token update-metadata "$mint" name "deprecated" \
+    --authority "$AUTHORITY_KEYPAIR" \
+    --fee-payer "$AUTHORITY_KEYPAIR" \
+    --program-2022 \
+    $NETWORK
+
+  # Update the token symbol to "deprecated"
+  spl-token update-metadata "$mint" symbol "deprecated" \
+    --authority "$AUTHORITY_KEYPAIR" \
+    --fee-payer "$AUTHORITY_KEYPAIR" \
+    --program-2022 \
+    $NETWORK
+
+  # Clear the metadata URI
+  spl-token update-metadata "$mint" uri "" \
+    --authority "$AUTHORITY_KEYPAIR" \
+    --fee-payer "$AUTHORITY_KEYPAIR" \
+    --program-2022 \
+    $NETWORK 
+done
+
+echo "Metadata updates complete for all mints."
