@@ -8,7 +8,6 @@ use anchor_lang::{
 };
 use anchor_spl::token_interface::spl_token_2022::{
     extension::{BaseStateWithExtensions, Extension, StateWithExtensions},
-    solana_zk_token_sdk::zk_token_proof_instruction::Pod,
     state::Mint,
 };
 use spl_tlv_account_resolution::{account::ExtraAccountMeta, state::ExtraAccountMetaList};
@@ -46,7 +45,7 @@ pub fn update_account_lamports_to_minimum_balance<'info>(
 /// - Allows the program to access and validate custom extensions associated with the token mint.
 /// - Facilitates interaction with extended functionalities like metadata pointers and group
 ///   memberships.
-pub fn get_mint_extensible_extension_data<T: Extension + VariableLenPack>(
+pub fn get_mint_extensible_extension_data<T: Extension>(
     account: &mut AccountInfo,
 ) -> Result<T> {
     let mint_data = account.data.borrow();
@@ -61,7 +60,7 @@ pub fn get_mint_extensible_extension_data<T: Extension + VariableLenPack>(
 /// - Similar to `get_mint_extensible_extension_data` but tailored for fixed-size extensions.
 /// - Ensures that specific extensions like `MetadataPointer` and `PermanentDelegate` are correctly
 ///   configured.
-pub fn get_mint_extension_data<T: Extension + Pod>(account: &mut AccountInfo) -> Result<T> {
+pub fn get_mint_extension_data<T: Extension + bytemuck::Pod>(account: &mut AccountInfo) -> Result<T> {
     let mint_data = account.data.borrow();
     let mint_with_extension = StateWithExtensions::<Mint>::unpack(&mint_data)?;
     let extension_data = *mint_with_extension.get_extension::<T>()?;

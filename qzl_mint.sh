@@ -8,15 +8,15 @@ set -e
 # and signing operations during deployment.
 DEPLOY_WALLET="${DEPLOY_WALLET:-/Users/nshv/solana/qzl_deploy_wallet.json}"
 # The admin public key. This account will ultimately control the token and its associated accounts.
-ADMIN_PUBKEY="2dgctKxMBz2aNsAVLpUgnBeDTFuaMGrHm9FSxGMkyPCi"
+ADMIN_PUBKEY="91f9YbkwufRzmuQLYgbUb74KUBRcQg3YxTcKBGABWcpf"
 
 # Distribution percentages:
 # - Treasury: 80%
 # - Team: 10%
 # - DEX: 10%
-TREASURY_PUBKEY="6srFBZBatJKoQhL8GU1XTgjX26MhbUecXiaZWA1nUikb"
-TEAM_PUBKEY="CbTTRiuStnDDoAARpAnXBGjC1Go4ftk8P2dPdW52soxS"
-DEX_PUBKEY="8q3P4ozJCHPMT7imummr4JFLHoXXD61vjz3o5KYdHewK"
+TREASURY_PUBKEY="9QuqMj4cmQz58eaeYk3ndz5zKFueEqAubtheCG9Yar15"
+TEAM_PUBKEY="BcicDRonCn9ZpKSDNhdd8nXqVZewwDdm69rditTyYwvG"
+DEX_PUBKEY="GeVjD6ZCQ1S1ncVKgzR5TcjCMwM7rAfKqdvCYB9uKamB"
 
 # Token parameters
 TOKEN_NAME="${TOKEN_NAME:-QZL Token}"

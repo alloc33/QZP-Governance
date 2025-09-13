@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "qzl-cli",
+    # "qzl-cli",
     "programs/*"
 ]
 
