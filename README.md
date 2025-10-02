@@ -1,4 +1,4 @@
-# QZL Token Project
+# QZP Token Project
 
 Available commands:
 ```shell
@@ -21,12 +21,12 @@ This project consists of two Solana programs:
 - Key responsibilities:
   - Voting round initialization and increments.
   - Project registration for voting.
-  - QZL token-based voting system.
+  - QZP token-based voting system.
 
-## QZL Token Program
-- Implements the **QZL token** using Solana's Token-2022 standard.
+## QZP Token Program
+- Implements the **QZP token** using Solana's Token-2022 standard.
 - Key responsibilities:
-  - Creates the QZL token mint with an initial supply of **450 million tokens**.
+  - Creates the QZP token mint with an initial supply of **450 million tokens**.
   - Automatically mints the entire supply to the admin's associated token account during token creation.
 
 ## Key Features
@@ -40,7 +40,7 @@ This project consists of two Solana programs:
   - Automatic metadata and authority management.
   - Fixed total supply, ensuring no further minting.
 
-### The qzl_mint.sh script is used to create and configure the QZL token. It:
+### The qzp_mint.sh script is used to create and configure the QZP token. It:
   - Creates a new token mint with extensions (metadata, group, member, close, permanent delegate).
   - Initializes token metadata (name, symbol, URI).
   -	Creates an associated token account for the admin.
